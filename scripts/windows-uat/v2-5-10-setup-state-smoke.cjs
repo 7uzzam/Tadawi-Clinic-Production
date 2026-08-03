@@ -28,6 +28,7 @@ function check(cond, name, detail) {
 // Source wiring still present in installed tree (copied from repo into package resources)
 const files = [
   'cloud/setup-state-service.js',
+  'cloud/setup-state-dom.js',
   'cloud/sync-engine.js',
   'cloud/boot-flow-ui.js',
   'cloud/activation-sync-defaults.js',
@@ -55,6 +56,18 @@ if (fs.existsSync(path.join(root, 'index.html'))) {
   const idx = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   check(/_pendingForcedPwChange/.test(idx) && /persistKv\('users'/.test(idx), 'password_persist_path');
   check(/id="login-boot-cta"/.test(idx), 'login_boot_cta_id');
+  check(/setup-state-dom\.js/.test(idx), 'setup_state_dom_script');
+  check(/SetupStateDom\.needsBootFlow/.test(idx), 'screens_gated_by_setup_state_dom');
+}
+
+if (fs.existsSync(path.join(root, 'cloud/config-layer.js'))) {
+  const cfg = fs.readFileSync(path.join(root, 'cloud/config-layer.js'), 'utf8');
+  check(/credentialRevision/.test(cfg), 'password_sync_revision_merge');
+}
+
+if (fs.existsSync(path.join(root, 'cloud/sync-engine.js'))) {
+  const src = fs.readFileSync(path.join(root, 'cloud/sync-engine.js'), 'utf8');
+  check(/missingLabelsAr/.test(src), 'readiness_arabic_labels');
 }
 
 // Prefer installed EXE path if present (CI Install-And-Prove)

@@ -15,9 +15,10 @@
 | Requirements | **0/40 PASS · 40 UNVERIFIED** |
 | Category A | **BLOCKED** on live operator proof (Devices A/B) |
 | Scenario C (cloud restore) | **FAIL** until retest on discovery-fix EXE |
-| Setup / Sync / Owner password | **FAIL** on prior build — fix landed; retest on new Installed EXE |
+| Setup / Sync / Owner password | **Code + CI install smoke landed** — live Device A/B Google still **UNVERIFIED** |
+| SetupState SoT / UI inventory / restart loop / readiness labels | **Implemented** — see `SETUP-STATE-UI-INVENTORY.md` + `evidence/setupstate-runtime-evidence.json` (after CI) |
 | Category B | **COMPLETE** (offline engineering) |
-| Offline engineering backlog | SetupState + Sync readiness + Owner password persist + Ready CTA cleanup shipped 2026-08-03 — see `SETUP-STATE-SYNC-AUTH-FIX.md` |
+| Offline engineering backlog | SetupStateDom SoT + password revision merge + inventory + runtime evidence harness shipped — live journeys still operator |
 | Scores refreshed? | **NO** — Overall baseline **58** (do not inflate without independent re-score after A–E) |
 | Repository role | **This repo = Production SoT** · old repo = **archive** (do not delete) |
 

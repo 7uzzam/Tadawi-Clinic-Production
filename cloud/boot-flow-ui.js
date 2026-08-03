@@ -214,9 +214,11 @@
   }
 
   function needsBootScreen() {
-    // Honor durable boot-complete flag once prerequisites still hold.
-    if (bootDonePersisted() && isBootComplete()) return false;
+    // Delegate to SetupStateService (via SetupStateDom) as sole SoT.
+    if (global.SetupStateDom?.needsBootFlow) return global.SetupStateDom.needsBootFlow();
     const ss = global.SetupStateService?.getState?.({ ignoreRestart: true });
+    if (ss && typeof ss.needsBootFlow === 'boolean') return !!ss.needsBootFlow;
+    if (bootDonePersisted() && isBootComplete()) return false;
     if (ss?.state === 'READY') return false;
     return !isBootComplete();
   }
@@ -375,6 +377,8 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
 .bf-restore-progress .bar>i{display:block;height:100%;width:0;background:#3D5A80;transition:width .2s}
 @media (max-height:720px){.bf-card-header{padding-top:10px}.bf-card h1{font-size:1.05rem}}
 @media (max-width:640px){.bf-nav-row{display:grid;grid-template-columns:1fr 1fr}.tdw-stepper.bf-stepper>li{min-width:3.25rem;max-width:5rem;font-size:10px}}
+@media (max-width:420px){.bf-overlay{padding-inline:10px}.bf-card{width:100%}.bf-nav-row{grid-template-columns:1fr}.bf-actions .btn,.bf-choice-actions .btn{font-size:13px;white-space:normal;overflow-wrap:anywhere}}
+@media (min-resolution:1.5dppx) and (max-width:1100px){.bf-actions .btn,.bf-nav-row .btn{min-height:48px;font-size:13px;white-space:normal}}
 `;
   }
 
@@ -1559,6 +1563,7 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
   function applyLoginGate() {
     ensureLoginAccessible();
     updateLoginSetupHint();
+    try { global.SetupStateDom?.applyDomVisibility?.({ reason: 'bootflow-login-gate' }); } catch { /* empty */ }
   }
 
   // Inventory helpers for tests

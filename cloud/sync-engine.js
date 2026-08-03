@@ -534,6 +534,16 @@
     return !!_pollTimer;
   }
 
+  const READINESS_LABELS_AR = Object.freeze({
+    cloud_v2_disabled: 'تفعيل Cloud V2',
+    google_not_connected: 'ربط حساب Google',
+    center_id: 'Center ID / تفعيل الترخيص',
+    branch_id: 'ربط الفرع',
+    device_id: 'تسجيل الجهاز',
+    device_sync_blocked: 'الجهاز محظور من المزامنة',
+    sync_guard_blocked: 'حارس المزامنة موقوف',
+  });
+
   /**
    * Detailed readiness — never a vague "not ready" without reasons.
    */
@@ -570,11 +580,13 @@
       missing.push(guard.reason || 'sync_guard_blocked');
     }
 
+    const missingLabelsAr = missing.map((code) => READINESS_LABELS_AR[code] || code);
     const ready = missing.length === 0 && cloudV2 && googleOk && !!centerId;
     return {
       ready,
       ok: ready,
       missing,
+      missingLabelsAr,
       state: ready
         ? (isRunning() ? 'RUNNING' : 'READY_NOT_STARTED')
         : 'WAITING_FOR_PREREQUISITES',
@@ -587,7 +599,7 @@
       deviceId: deviceId || null,
       messageAr: ready
         ? (isRunning() ? 'محرك المزامنة يعمل' : 'محرك المزامنة جاهز — لم يُبدأ بعد')
-        : `محرك المزامنة غير جاهز: ${missing.join(', ')}`,
+        : `محرك المزامنة غير جاهز — المتطلبات الناقصة: ${missingLabelsAr.join('؛ ')} (${missing.join(', ')})`,
     };
   }
 
