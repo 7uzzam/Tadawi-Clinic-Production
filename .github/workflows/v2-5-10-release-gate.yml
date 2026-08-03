@@ -121,6 +121,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node scripts/windows-uat/v2-5-10-setup-state-smoke.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/windows-uat/v2-5-10-setupstate-runtime-evidence.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: A-E runtime harness (records UNVERIFIED until live proof)
         id: ae
         if: success()

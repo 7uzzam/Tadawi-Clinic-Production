@@ -2219,9 +2219,24 @@ tbody tr:nth-child(even) { background: transparent; }
 .login-footer-row {
   display: flex; flex-wrap: nowrap; gap: 8px; margin-top: 0; justify-content: stretch; width: 100%;
 }
-.login-footer-row .login-activate-btn { flex: 1 1 0; min-width: 0; margin-top: 0; padding: 9px 10px; font-size: 12px; min-height: 44px; }
+.login-footer-row .login-activate-btn {
+  flex: 1 1 0; min-width: 0; margin-top: 0; padding: 9px 10px; font-size: clamp(11px, 2.4vw, 12px);
+  min-height: 44px; white-space: normal; line-height: 1.25; overflow-wrap: anywhere;
+}
+#settings-bootflow-cta, #settings-centersetup-cta, #btn-cloud-v2-sync-now,
+[data-ss-surface="google_connect"] {
+  min-height: 40px; max-width: 100%; white-space: normal; overflow-wrap: anywhere;
+}
+.ss-hidden-by-state { display: none !important; }
 @media (max-width: 640px) {
   .login-footer-row { display: grid; grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 420px), (max-height: 640px) {
+  .login-footer-row { display: grid; grid-template-columns: 1fr; }
+  .login-footer-row .login-activate-btn { width: 100%; }
+}
+@media (min-resolution: 1.5dppx) and (max-width: 900px) {
+  .login-footer-row .login-activate-btn { font-size: 11px; padding: 10px 8px; }
 }
 .login-field label { display: block; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.55); margin-bottom: 6px; }
 .login-field input, .login-field select {
@@ -6386,10 +6401,10 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
         <div id="bk-cv2-setup-hint" style="display:none;margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(255,193,7,0.12);border:1px solid rgba(255,193,7,0.35);font-size:12px;line-height:1.7;color:var(--text-muted)"></div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn btn-primary btn-sm" onclick="showPage('owner-hub')">🏠 Owner Hub — الفروع والأجهزة</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="typeof openBootWizardFromLogin==='function'&&openBootWizardFromLogin()">🚀 معالج الإعداد (BootFlow)</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="startCloudDbOAuth()">🔗 ربط Google</button>
-          <button type="button" class="btn btn-accent btn-sm" onclick="runCloudV2SyncNow()">🔄 مزامنة الآن</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="CenterSetupUI.open('manage')" title="دعم متقدم فقط">⚙️ إعداد المركز (دعم)</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="settings-bootflow-cta" onclick="typeof openBootWizardFromLogin==='function'&&openBootWizardFromLogin()">🚀 معالج الإعداد (BootFlow)</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-ss-surface="google_connect" onclick="startCloudDbOAuth()">🔗 ربط Google</button>
+          <button type="button" class="btn btn-accent btn-sm" id="btn-cloud-v2-sync-now" data-ss-surface="sync_manual" onclick="runCloudV2SyncNow()">🔄 مزامنة الآن</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="settings-centersetup-cta" onclick="CenterSetupUI.open('manage')" title="دعم متقدم فقط">⚙️ إعداد المركز (دعم)</button>
         </div>
         <div id="bk-cv2-migration-wrap" style="margin-top:12px;padding:10px;background:var(--surface);border-radius:8px;border:1px dashed var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
@@ -9705,15 +9720,18 @@ async function doLogin() {
 }
 
 function finishLogin() {
-  // V2-5.9: Do NOT auto-open Owner Bootstrap for Google/login users.
-  // Gate on activation completeness only (Google → License → Org → Branch → Restore → Sync).
-  if (typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.()) {
+  // Single source of truth: SetupStateService (fallback BootFlow).
+  const needsBoot = (typeof SetupStateDom !== 'undefined' && SetupStateDom.needsBootFlow)
+    ? SetupStateDom.needsBootFlow()
+    : (typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.());
+  if (needsBoot) {
     const errEl = document.getElementById('login-error');
     if (errEl) {
       errEl.style.display = 'block';
       errEl.textContent = '⛔ أكمل رحلة الإعداد الموحّدة (Google → الترخيص → المؤسسة → الفرع → مصدر البيانات → المزامنة) قبل الدخول.';
     }
     try { BootFlow.forceOpen?.(); } catch { /* empty */ }
+    try { SetupStateDom?.applyDomVisibility?.(); } catch { /* empty */ }
     return;
   }
 
@@ -9733,6 +9751,7 @@ function finishLogin() {
   }
 
   completeAuthenticatedLogin();
+  try { SetupStateDom?.applyDomVisibility?.(); } catch { /* empty */ }
 }
 
 function completeAuthenticatedLogin() {
@@ -10880,9 +10899,13 @@ function initContextPanel() {
 
 function showPage(id) {
   if (!requireAuth('عرض الصفحات')) return;
-  if (typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.()) {
+  const needsBoot = (typeof SetupStateDom !== 'undefined' && SetupStateDom.needsBootFlow)
+    ? SetupStateDom.needsBootFlow()
+    : (typeof BootFlow !== 'undefined' && BootFlow.needsBootScreen?.());
+  if (needsBoot) {
     notify('⛔ أكمل رحلة الإعداد الموحّدة قبل فتح صفحات البرنامج', 'danger');
     try { BootFlow.forceOpen?.(); } catch { /* empty */ }
+    try { SetupStateDom?.applyDomVisibility?.(); } catch { /* empty */ }
     return;
   }
   if (id === 'search') {
@@ -16088,6 +16111,7 @@ window.__LICENSE_VAULT_DEFAULTS__ = window.__LICENSE_VAULT_DEFAULTS__ || {
 <script src="cloud/license-legacy-bridge.js"></script>
 <script src="cloud/drive-migration.js"></script>
 <script src="cloud/setup-state-service.js"></script>
+<script src="cloud/setup-state-dom.js"></script>
 <script src="cloud/bootstrap.js"></script>
 <script src="cloud/cloud-data-discovery.js"></script>
 <script src="cloud/boot-flow-ui.js"></script>
@@ -17916,8 +17940,10 @@ async function runCloudV2SyncNow() {
       return { ok: false, error: 'sync_engine_not_ready', readiness };
     }
     if (!readiness.ready) {
-      notify('⚠️ ' + (readiness.messageAr || ('غير جاهز: ' + (readiness.missing || []).join(', '))), 'warning');
-      // Still allow forced retry only when API exists and caller expects it — surface reasons first.
+      const labels = (readiness.missingLabelsAr && readiness.missingLabelsAr.length)
+        ? readiness.missingLabelsAr.join('؛ ')
+        : (readiness.missing || []).join(', ');
+      notify('⚠️ ' + (readiness.messageAr || ('غير جاهز — المتطلبات الناقصة: ' + labels)), 'warning');
       return { ok: false, error: 'sync_engine_not_ready', readiness };
     }
     if (!SyncEngine.isRunning?.()) {
@@ -18197,22 +18223,37 @@ function renderCloudV2BackupStatus() {
   set('bk-cv2-center', centerId);
   const hintEl = document.getElementById('bk-cv2-setup-hint');
   if (hintEl && enabled) {
+    const readiness = (typeof SyncEngine !== 'undefined' && SyncEngine.getReadiness)
+      ? SyncEngine.getReadiness()
+      : null;
     const branch = (typeof DeviceConfig !== 'undefined' && DeviceConfig.load?.()?.lockedBranchId) || '';
     const google = settings?.backup?.providers?.google?.connected;
     const parts = [];
-    if (!google) parts.push('اربط Google أولاً');
-    if (centerId === '—') parts.push('فعّل الترخيص بمفتاح المنتج لإنشاء Center ID');
-    if (centerId !== '—' && !branch) parts.push('أكمل الفرع والجهاز من Owner Hub أو معالج الإعداد (BootFlow)');
-    if (parts.length) {
+    if (readiness && !readiness.ready && Array.isArray(readiness.missing) && readiness.missing.length) {
       hintEl.style.display = 'block';
-      hintEl.innerHTML = '⚠️ <strong>لتفعيل المزامنة:</strong> ' + parts.join(' → ');
+      const labels = (readiness.missingLabelsAr && readiness.missingLabelsAr.length)
+        ? readiness.missingLabelsAr.join('؛ ')
+        : readiness.missing.join(', ');
+      hintEl.innerHTML = '⚠️ <strong>محرك المزامنة غير جاهز</strong><br>'
+        + `الحالة: <code dir="ltr">${readiness.state}</code><br>`
+        + `المتطلبات الناقصة: ${labels}<br>`
+        + `<code dir="ltr">${readiness.missing.join(', ')}</code>`;
     } else {
-      hintEl.style.display = 'none';
-      hintEl.textContent = '';
+      if (!google) parts.push('اربط Google أولاً');
+      if (centerId === '—') parts.push('فعّل الترخيص بمفتاح المنتج لإنشاء Center ID');
+      if (centerId !== '—' && !branch) parts.push('أكمل الفرع والجهاز من Owner Hub أو معالج الإعداد (BootFlow)');
+      if (parts.length) {
+        hintEl.style.display = 'block';
+        hintEl.innerHTML = '⚠️ <strong>لتفعيل المزامنة:</strong> ' + parts.join(' → ');
+      } else {
+        hintEl.style.display = 'none';
+        hintEl.textContent = '';
+      }
     }
   } else if (hintEl) {
     hintEl.style.display = 'none';
   }
+  try { SetupStateDom?.applyDomVisibility?.(); } catch { /* empty */ }
   const sync = typeof window.SyncEngine !== 'undefined' ? window.SyncEngine.getStatus?.() : null;
   const lastSync = sync?.lastPushAt || sync?.lastPollAt;
   set('bk-cv2-sync', lastSync ? formatBackupDateTime(lastSync) : (enabled ? 'لم تتم بعد' : '—'));
@@ -26891,6 +26932,7 @@ if (typeof CommercialLicense !== 'undefined' && CommercialLicense.engine) {
   filterLoginUsers();
   applyCenterBranding();
   try { BootFlow?.applyLoginGate?.(); } catch { /* empty */ }
+  try { SetupStateDom?.applyDomVisibility?.({ reason: 'app-startup' }); } catch { /* empty */ }
   if (typeof loadColorSchemeSilent === 'function') loadColorSchemeSilent();
   if (typeof initTopbarClock === 'function') initTopbarClock();
 

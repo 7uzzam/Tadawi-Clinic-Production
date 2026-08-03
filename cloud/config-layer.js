@@ -161,7 +161,30 @@
       const incoming = table === 'users'
         ? pack.users.map(u => {
           const existing = (global.users || []).find(x => x.id === u.id);
-          return existing ? { ...existing, ...u, password: existing.password || u.password } : u;
+          if (!existing) return u;
+          // Authoritative password = higher credentialRevision, else newer passwordChangedAt.
+          // Never prefer stale local seed over synced revision.
+          const er = Number(existing.credentialRevision || 0);
+          const ir = Number(u.credentialRevision || 0);
+          let password = existing.password || u.password;
+          if (ir > er) password = u.password || existing.password;
+          else if (er > ir) password = existing.password || u.password;
+          else {
+            const et = Date.parse(existing.passwordChangedAt || 0) || 0;
+            const it = Date.parse(u.passwordChangedAt || 0) || 0;
+            if (it > et) password = u.password || existing.password;
+          }
+          return {
+            ...existing,
+            ...u,
+            password,
+            credentialRevision: Math.max(er, ir),
+            passwordChangedAt: (Date.parse(u.passwordChangedAt || 0) || 0) >= (Date.parse(existing.passwordChangedAt || 0) || 0)
+              ? (u.passwordChangedAt || existing.passwordChangedAt)
+              : (existing.passwordChangedAt || u.passwordChangedAt),
+            mustChangePassword: false,
+            seedDefaultPassword: false,
+          };
         })
         : pack[table];
       const r = mergeArrayTable(table, incoming, branchId, options);

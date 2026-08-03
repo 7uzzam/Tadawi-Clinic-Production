@@ -586,15 +586,15 @@
     if (!centerId) steps.push('② فعّل الترخيص بمفتاح المنتج — لإنشاء Center ID');
     if (centerId && !branch) steps.push('③ أكمل إعداد المركز والفرع الأول');
     if (!steps.length) return '';
-    return `<div class="card" style="padding:20px;margin-bottom:14px;border-color:var(--warning)">
+    return `<div class="card" style="padding:20px;margin-bottom:14px;border-color:var(--warning)" data-ss-surface="ownerhub_setup_guide">
       <div class="card-title" style="margin-bottom:10px">⚙️ إكمال إعداد Cloud V2</div>
       <ul style="margin:0;padding-right:18px;line-height:1.85;font-size:13px;color:var(--text-muted)">
         ${steps.map(s => `<li style="margin-bottom:6px">${s}</li>`).join('')}
       </ul>
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-        <button type="button" class="btn btn-primary btn-sm" onclick="typeof openBootWizardFromLogin==='function'&&openBootWizardFromLogin()">🚀 معالج الإعداد (BootFlow)</button>
+        <button type="button" class="btn btn-primary btn-sm" id="ownerhub-bootflow-cta" onclick="typeof openBootWizardFromLogin==='function'&&openBootWizardFromLogin()">🚀 معالج الإعداد (BootFlow)</button>
         <button type="button" class="btn btn-secondary btn-sm" onclick="showPage('settings');setTimeout(function(){document.getElementById('set-panel-backup')?.scrollIntoView({behavior:'smooth'})},300)">الإعدادات → النسخ السحابي</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="CenterSetupUI.open('branch')" title="دعم متقدم">🏥 ربط فرع (دعم)</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="ownerhub-centersetup-cta" onclick="CenterSetupUI.open('branch')" title="دعم متقدم">🏥 ربط فرع (دعم)</button>
       </div>
     </div>`;
   }
@@ -613,9 +613,10 @@
         host.innerHTML = renderSetupGuideHtml(global.LicenseCloud?.loadLocal?.() || {}) +
           '<div class="card" style="padding:16px;margin-top:12px"><p style="margin:0;color:var(--text-muted)">Cloud V2 غير مفعّل بعد — اتبع الخطوات أعلاه أو فعّله من الإعدادات ← تفعيل الأنظمة.</p>' +
           '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
-          '<button type="button" class="btn btn-primary btn-sm" onclick="typeof openBootWizardFromLogin===\'function\'&&openBootWizardFromLogin()">🚀 معالج الإعداد (BootFlow)</button>' +
+          '<button type="button" class="btn btn-primary btn-sm" id="ownerhub-bootflow-cta" onclick="typeof openBootWizardFromLogin===\'function\'&&openBootWizardFromLogin()">🚀 معالج الإعداد (BootFlow)</button>' +
           '<button type="button" class="btn btn-secondary btn-sm" onclick="showPage(\'settings\');setTimeout(function(){document.getElementById(\'set-panel-systems\')?.scrollIntoView({behavior:\'smooth\'})},300)">تفعيل Cloud V2</button>' +
-          '<button type="button" class="btn btn-ghost btn-sm" onclick="CenterSetupUI.open(\'overview\')" title="دعم متقدم">⚙️ إعداد المركز (دعم)</button></div></div>';
+          '<button type="button" class="btn btn-ghost btn-sm" id="ownerhub-centersetup-cta" onclick="CenterSetupUI.open(\'overview\')" title="دعم متقدم">⚙️ إعداد المركز (دعم)</button></div></div>';
+        try { global.SetupStateDom?.applyDomVisibility?.({ reason: 'owner-hub-not-ready' }); } catch { /* empty */ }
         return;
       }
 
@@ -805,6 +806,7 @@
         </div>
       </div>`;
       try { fillOwnerAccountsPanel(); } catch (e) { console.warn('OwnerHub accounts panel', e); }
+      try { global.SetupStateDom?.applyDomVisibility?.({ reason: 'owner-hub-render' }); } catch { /* empty */ }
     } catch (err) {
       console.error('OwnerHub render:', err);
       host.innerHTML = '<div class="card" style="padding:20px;border-color:var(--danger)"><p style="margin:0;color:var(--danger)">⚠️ تعذّر تحميل Owner Hub: ' + (err.message || 'خطأ') + '</p></div>';
@@ -1021,8 +1023,11 @@
       return res;
     },
     skipLegacyOwnerMigration() {
-      // V2-5.8: never skip Owner password during unified activation.
-      if (typeof global.BootFlow !== 'undefined' && global.BootFlow.needsBootScreen?.()) {
+      // Single SoT: SetupStateService / SetupStateDom — never BootFlow alone.
+      const needsBoot = global.SetupStateDom?.needsBootFlow?.()
+        || global.SetupStateService?.getState?.({ ignoreRestart: true })?.needsBootFlow
+        || global.BootFlow?.needsBootScreen?.();
+      if (needsBoot) {
         global.notify?.('⛔ لا يمكن تخطي حساب المالك أثناء رحلة الإعداد الأولى', 'danger');
         return { ok: false, error: 'owner_required_during_activation' };
       }

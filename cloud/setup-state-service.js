@@ -181,6 +181,7 @@
   }
 
   function getState(options) {
+    options = options || {};
     const resolved = resolveState(options);
     const syncReadiness = global.SyncEngine?.getReadiness?.() || null;
     return {

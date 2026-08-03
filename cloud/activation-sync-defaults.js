@@ -64,7 +64,13 @@
     b.cloudEnabled = true;
     b.cloudDb.enabled = true;
     if (b.cloudDb.autoBackup !== false) b.cloudDb.autoBackup = true;
+    // Local auto backup must have a positive interval or startAutoBackupTimer no-ops.
     if (b.localAuto !== false) b.localAuto = true;
+    if (b.localEnabled !== false) b.localEnabled = true;
+    if (!(parseInt(b.autoIntervalMin, 10) > 0)) b.autoIntervalMin = 60;
+    if (!(parseInt(b.cloudDb.autoIntervalMin, 10) > 0) && b.cloudDb.autoBackup) {
+      b.cloudDb.autoIntervalMin = 60;
+    }
     global.settings.cloudV2Enabled = true;
     global.DB?.set?.('settings', global.settings);
 
