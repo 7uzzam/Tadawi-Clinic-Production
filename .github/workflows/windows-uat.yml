@@ -1,0 +1,160 @@
+name: Windows UAT V2-3.5
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - integration/hybrid-cloud-owner-v2
+
+jobs:
+  windows-uat:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      # better-sqlite3@13 engines.node >=22 and ships N-API prebuilds (prebuilds/*.node).
+      # Node 20 cannot load those binaries (NAPI_VERSION=10 / engines mismatch).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Enable MSVC build tools
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          vsversion: '2022'
+
+      - name: Clean npm cache + npm ci
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm cache clean --force
+          if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+          # ignore-scripts: avoid legacy prebuild-install ABI tarball path; package ships N-API prebuilds
+          npm ci --ignore-scripts
+          if (-not (Test-Path "node_modules\better-sqlite3\prebuilds\win32-x64.node")) {
+            throw "Missing better-sqlite3 N-API prebuild win32-x64.node"
+          }
+          node -e "console.log('node', process.version, 'modules', process.versions.modules); const D=require('better-sqlite3'); const d=new D(':memory:'); d.exec('select 1'); console.log('host better-sqlite3 OK via N-API prebuild');"
+
+      - name: Tests
+        run: npm test
+
+      - name: Generate packaging inputs (OAuth/brand/license registries)
+        shell: pwsh
+        run: |
+          # cloud-oauth.config.json is gitignored; generate from embedded/defaults for packaging
+          node scripts/generate-oauth-config.mjs
+          node scripts/generate-license-registries.mjs
+          node scripts/generate-brand-assets.mjs
+          if (-not (Test-Path "electron\cloud-oauth.config.json")) {
+            throw "OAuth config was not generated"
+          }
+
+      - name: Build Windows installer
+        env:
+          # N-API prebuilds are Electron-safe; do not replace with ABI-specific rebuild
+          ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true'
+        run: npm run build:win
+
+      - name: Method A icon build attempt (signAndEditExecutable true)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force -Path docs\integration-v2\evidence\icon-method-a | Out-Null
+          $env:TDAWI_ICON_METHOD = 'rcedit'
+          node scripts/run-win-build-icon-method.cjs method-a 2>&1 |
+            Tee-Object docs\integration-v2\evidence\icon-method-a\build.log
+          if ($LASTEXITCODE -eq 0) {
+            "method-a-exit=0" | Set-Content docs\integration-v2\evidence\icon-method-a\status.txt
+          } else {
+            "method-a-exit=$LASTEXITCODE" | Set-Content docs\integration-v2\evidence\icon-method-a\status.txt
+          }
+
+      - name: Verify installer size
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist -Filter 'HijamaManagement-Setup-*.exe' | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $installer -or $installer.Length -lt 10MB) { throw "Installer missing or too small: $($installer.Length)" }
+          New-Item -ItemType Directory -Force docs\integration-v2\evidence | Out-Null
+          "$( (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower() )  $($installer.Name)" | Set-Content docs\integration-v2\evidence\installer.sha256
+          $exe = Get-ChildItem dist\win-unpacked -Filter '*.exe' | Sort-Object Length -Descending | Select-Object -First 1
+          "$( (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLower() )  $($exe.Name)" | Set-Content docs\integration-v2\evidence\win-unpacked-exe.sha256
+          node scripts/inspect-win-exe-icon.cjs $exe.FullName | Tee-Object docs\integration-v2\evidence\icon-resource-inspect.json
+
+      - name: Runtime dataset UAT (production DB/backup path)
+        shell: pwsh
+        run: node scripts/windows-uat/runtime-dataset-uat.cjs
+
+      - name: License persistence UAT (License Admin V6)
+        shell: pwsh
+        run: node scripts/windows-uat/license-persistence-uat.cjs
+
+      - name: Print / local QR runtime UAT
+        shell: pwsh
+        run: node scripts/windows-uat/print-qr-runtime-uat.cjs
+
+      - name: Install lifecycle + performance UAT (silent)
+        shell: pwsh
+        run: |
+          pwsh -File scripts/windows-uat/Install-Lifecycle-UAT.ps1 `
+            -RepoRoot $PWD `
+            -EvidenceDir (Join-Path $PWD 'docs\integration-v2\evidence')
+
+      - name: Owner / RBAC headless runtime checks
+        shell: pwsh
+        run: node scripts/windows-uat/owner-rbac-runtime.cjs
+
+      - name: Apply evidence to traceability
+        run: node scripts/windows-uat/apply-evidence-to-traceability.cjs
+      - name: Slim phase evidence (no win-unpacked / no Setup EXE)
+        if: always()
+        shell: pwsh
+        run: |
+          $dst = 'ci-artifacts/release-evidence'
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          $candidates = @(
+            'docs/integration-v2-5-8/evidence',
+            'docs/integration-v2-5-stabilization/evidence',
+            'docs/integration-v2-5/evidence',
+            'docs/integration-v2-5-7/evidence',
+            'docs/integration-v2-5-6/evidence',
+            'docs/integration-v2-5-5/evidence',
+            'docs/integration-v2-5-4/evidence',
+            'docs/integration-v2-5-3/evidence',
+            'docs/integration-v2-5-2/evidence',
+            'docs/integration-v2-5-1/evidence',
+            'docs/integration-v2/evidence',
+            'docs/integration-v2-4/evidence',
+            'docs/integration-v2-3-5/evidence'
+          )
+          foreach ($c in $candidates) {
+            if (Test-Path $c) {
+              Get-ChildItem $c -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -notlike 'source-release-*.tar.gz' -and $_.Length -lt 5MB } |
+                ForEach-Object {
+                  $rel = $_.FullName.Substring((Resolve-Path $c).Path.Length).TrimStart('\','/')
+                  $target = Join-Path $dst (Join-Path (Split-Path $c -Leaf) $rel)
+                  New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
+                  Copy-Item -Force $_.FullName $target
+                }
+            }
+          }
+          if (-not (Get-ChildItem $dst -Recurse -File -ErrorAction SilentlyContinue)) {
+            '{"note":"no phase evidence files found"}' | Set-Content (Join-Path $dst 'empty.json')
+          }
+      - name: Upload release-evidence
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence
+          path: ci-artifacts/release-evidence/**
+          retention-days: 1
+          if-no-files-found: warn
+          compression-level: 9

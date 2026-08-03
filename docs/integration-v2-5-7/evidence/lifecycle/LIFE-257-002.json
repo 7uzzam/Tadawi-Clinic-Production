@@ -1,0 +1,12 @@
+{
+  "id": "LIFE-257-002",
+  "title": "Update from V2-4",
+  "ok": true,
+  "result": "PASS",
+  "at": "2026-07-31T00:05:51.346Z",
+  "evidence": {
+    "nshUpgradePreserve": true,
+    "migrationPreserve": true,
+    "customRemoveIsUpdated": true
+  }
+}

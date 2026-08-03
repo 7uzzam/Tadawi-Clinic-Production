@@ -1,0 +1,35 @@
+node_modules/
+dist/
+ci-artifacts/
+electron/cloud-oauth.config.json
+electron/cloud-oauth.config.local.json
+manus-reference/
+license/data/backup/*/
+!license/data/backup/.gitkeep
+assets/cupping-maps/atlas-*
+assets/cupping-maps/source-*
+assets/cupping-maps/map-*
+
+# Generated installer branding (from branding.config.json via npm run generate:brand)
+build/Installer-Sidebar.bmp
+build/Installer-Header.bmp
+build/Uninstaller-Sidebar.bmp
+build/installer-branding.nsh
+
+# Tooling / local artifacts
+.eslintcache
+*.log
+.DS_Store
+coverage/
+tmp/
+.temp/
+pat-reports/
+!docs/archive/pat-reports/
+!docs/archive/pat-reports/**
+
+# License Admin production secrets (dev test keys may be committed under keys/dev)
+tools/license-admin/keys/production/
+
+# Never commit source release tarballs
+docs/**/evidence/source-release-*.tar.gz
+*.zip

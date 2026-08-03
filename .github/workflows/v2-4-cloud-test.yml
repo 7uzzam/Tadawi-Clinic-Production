@@ -1,0 +1,128 @@
+name: V2-4 Cloud Test (PR-safe)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - integration/hybrid-cloud-owner-v2
+  pull_request:
+    branches:
+      - integration/hybrid-production-candidate
+      - integration/hybrid-cloud-owner-v2
+
+jobs:
+  cloud-test:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          vsversion: '2022'
+
+      - name: npm ci
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm cache clean --force
+          if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+          npm ci --ignore-scripts
+          if (-not (Test-Path "node_modules\better-sqlite3\prebuilds\win32-x64.node")) {
+            throw "Missing better-sqlite3 N-API prebuild"
+          }
+          node -e "const D=require('better-sqlite3'); new D(':memory:').exec('select 1'); console.log('sqlite ok')"
+
+      - name: Unit/integration tests
+        run: npm test
+
+      - name: V2-4 outbox dual-device
+        run: node tests/baseline/test-v2-4-outbox-dual-device.js
+
+      - name: Security lint surface (no token patterns in staged cloud logs)
+        shell: pwsh
+        run: |
+          $bad = Select-String -Path cloud\*.js,database\sync-*.js,electron\cloud-providers\*.js -Pattern 'refresh_token\s*[:=]\s*["''][A-Za-z0-9]' -ErrorAction SilentlyContinue
+          if ($bad) { $bad | ForEach-Object { $_.Line }; throw "Possible secret material in source" }
+          Write-Host "No hardcoded refresh tokens found"
+
+      - name: Generate packaging inputs
+        shell: pwsh
+        run: |
+          node scripts/generate-oauth-config.mjs
+          node scripts/generate-license-registries.mjs
+          node scripts/generate-brand-assets.mjs
+
+      - name: Build Windows installer
+        env:
+          ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true'
+        run: npm run build:win
+
+      - name: Write build evidence stub
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path docs\integration-v2-4\evidence | Out-Null
+          $exe = Get-ChildItem dist\*.exe | Select-Object -First 1
+          $hash = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash
+          @{
+            at = (Get-Date).ToUniversalTime().ToString('o')
+            commit = $env:GITHUB_SHA
+            installer = $exe.Name
+            sha256 = $hash
+            note = 'PR-safe cloud-test build; real-cloud UAT is a separate workflow'
+          } | ConvertTo-Json | Set-Content docs\integration-v2-4\evidence\cloud-test-build.json
+      - name: Slim phase evidence (no win-unpacked / no Setup EXE)
+        if: always()
+        shell: pwsh
+        run: |
+          $dst = 'ci-artifacts/release-evidence'
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          $candidates = @(
+            'docs/integration-v2-5-8/evidence',
+            'docs/integration-v2-5-stabilization/evidence',
+            'docs/integration-v2-5/evidence',
+            'docs/integration-v2-5-7/evidence',
+            'docs/integration-v2-5-6/evidence',
+            'docs/integration-v2-5-5/evidence',
+            'docs/integration-v2-5-4/evidence',
+            'docs/integration-v2-5-3/evidence',
+            'docs/integration-v2-5-2/evidence',
+            'docs/integration-v2-5-1/evidence',
+            'docs/integration-v2/evidence',
+            'docs/integration-v2-4/evidence',
+            'docs/integration-v2-3-5/evidence'
+          )
+          foreach ($c in $candidates) {
+            if (Test-Path $c) {
+              Get-ChildItem $c -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -notlike 'source-release-*.tar.gz' -and $_.Length -lt 5MB } |
+                ForEach-Object {
+                  $rel = $_.FullName.Substring((Resolve-Path $c).Path.Length).TrimStart('\','/')
+                  $target = Join-Path $dst (Join-Path (Split-Path $c -Leaf) $rel)
+                  New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
+                  Copy-Item -Force $_.FullName $target
+                }
+            }
+          }
+          if (-not (Get-ChildItem $dst -Recurse -File -ErrorAction SilentlyContinue)) {
+            '{"note":"no phase evidence files found"}' | Set-Content (Join-Path $dst 'empty.json')
+          }
+      - name: Upload release-evidence
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence
+          path: ci-artifacts/release-evidence/**
+          retention-days: 1
+          if-no-files-found: warn
+          compression-level: 9

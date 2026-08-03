@@ -1,0 +1,11 @@
+{
+  "at": "2026-07-31T00:05:51.575Z",
+  "paths": [
+    "corrupt.db → DatabaseOpenError → original preserved (no empty replace)",
+    "app-only uninstall → license + database retained",
+    "silent uninstall without /FULLWIPE=1 → preserve",
+    "NSIS ${isUpdated} → userData preserved",
+    "portable not in package.json targets → supported:false"
+  ],
+  "result": "PASS"
+}

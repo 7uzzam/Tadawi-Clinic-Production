@@ -1,0 +1,91 @@
+name: V2-5 Final Stabilization Gate
+on:
+  workflow_dispatch:
+  push:
+    branches: [cursor/v2-5-final-stabilization-c2ea, integration/v2-5-final-stabilization]
+  pull_request:
+    branches: [cursor/v2-5-master-release-gate-c2ea, integration/hybrid-cloud-owner-v2]
+jobs:
+  stabilization-gate:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm }
+      - uses: ilammy/msvc-dev-cmd@v1
+        with: { vsversion: '2022' }
+      - name: npm ci
+        shell: pwsh
+        run: |
+          npm ci --ignore-scripts
+          node -e "require('better-sqlite3')"
+      - run: npm test
+      - run: npm run verify:v2-5-stabilization-release-gate
+      - run: npm run verify:v2-5-7-release-gate
+      - run: npm run verify:v2-5-6-release-gate
+      - run: npm run verify:v2-5-5-release-gate
+      - run: npm run verify:v2-5-4-release-gate
+      - run: npm run verify:v2-5-3-release-gate
+      - run: npm run verify:v2-5-2-release-gate
+      - run: npm run verify:v2-5-1-release-gate
+      - run: npm run verify:v2-4-release-gate
+      - run: |
+          node scripts/generate-oauth-config.mjs
+          node scripts/generate-license-registries.mjs
+          node scripts/generate-brand-assets.mjs
+      - name: Windows build
+        env: { ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true' }
+        run: npm run build:win
+      - name: Index release artifacts after build
+        run: node scripts/v2-5-7-release-artifacts.cjs
+      - name: Re-run stabilization UAT with Windows artifacts
+        run: |
+          node scripts/windows-uat/v2-5-stabilization-runtime.cjs
+          npm run verify:v2-5-stabilization-release-gate
+      - name: Slim phase evidence (no win-unpacked / no Setup EXE)
+        if: always()
+        shell: pwsh
+        run: |
+          $dst = 'ci-artifacts/release-evidence'
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          $candidates = @(
+            'docs/integration-v2-5-8/evidence',
+            'docs/integration-v2-5-stabilization/evidence',
+            'docs/integration-v2-5/evidence',
+            'docs/integration-v2-5-7/evidence',
+            'docs/integration-v2-5-6/evidence',
+            'docs/integration-v2-5-5/evidence',
+            'docs/integration-v2-5-4/evidence',
+            'docs/integration-v2-5-3/evidence',
+            'docs/integration-v2-5-2/evidence',
+            'docs/integration-v2-5-1/evidence',
+            'docs/integration-v2/evidence',
+            'docs/integration-v2-4/evidence',
+            'docs/integration-v2-3-5/evidence'
+          )
+          foreach ($c in $candidates) {
+            if (Test-Path $c) {
+              Get-ChildItem $c -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -notlike 'source-release-*.tar.gz' -and $_.Length -lt 5MB } |
+                ForEach-Object {
+                  $rel = $_.FullName.Substring((Resolve-Path $c).Path.Length).TrimStart('\','/')
+                  $target = Join-Path $dst (Join-Path (Split-Path $c -Leaf) $rel)
+                  New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
+                  Copy-Item -Force $_.FullName $target
+                }
+            }
+          }
+          if (-not (Get-ChildItem $dst -Recurse -File -ErrorAction SilentlyContinue)) {
+            '{"note":"no phase evidence files found"}' | Set-Content (Join-Path $dst 'empty.json')
+          }
+      - name: Upload release-evidence
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence
+          path: ci-artifacts/release-evidence/**
+          retention-days: 1
+          if-no-files-found: warn
+          compression-level: 9
