@@ -46,3 +46,12 @@
 3. Sync Now shows detailed readiness or succeeds  
 4. Completed Google/Boot CTA hidden when READY  
 5. Local + cloud auto backup schedules active after finalize  
+
+
+## Installed Setup EXE (post-fix)
+
+- Release: https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30817956273
+- SHA-256: `db62fd5e3a989d7e7a5c4e6df737626b321d50520a5216d3cf20a379159bbcb5`
+- Commit: `6bbd614`
+- CI: npm test PASS · Clean install + setup-state smoke PASS · Publish PASS
+- Release gate: FAIL (A–E UNVERIFIED — expected)

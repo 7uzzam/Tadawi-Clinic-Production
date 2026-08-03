@@ -24,7 +24,7 @@ Owner migrated **before** Production Candidate. Live UAT A–E and PC declaratio
 1. [x] `RELEASE-MIGRATION-PLAN.md` written  
 2. [x] Owner created empty GitHub repository `Tadawi-Clinic-Production`  
 3. [x] Export/push clean production tree (no source-release tarballs)  
-4. [x] CI publishes Setup EXE to GitHub Releases on this repo (`uat-v2-5-10-30815143446`)  
+4. [x] CI publishes Setup EXE to GitHub Releases on this repo (`uat-v2-5-10-30817956273`)  
 5. [ ] Operator A–E on Installed EXE from this repo  
 6. [ ] Archive README banner on `Cupping-System-Management` (owner; do not delete)
 
