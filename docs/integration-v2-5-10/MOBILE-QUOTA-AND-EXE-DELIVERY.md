@@ -32,9 +32,9 @@ The next workflow run also cleans `setup-exe` artifacts automatically.
 ### B) Get the Setup EXE after CI publish
 
 1. Open https://github.com/7uzzam/Tadawi-Clinic-Production/releases  
-2. Current UAT: https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30817956273  
+2. Current UAT: https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30821313092  
 3. Download `HijamaManagement-Setup-2.0.1.exe`  
-4. Verify SHA-256: `db62fd5e3a989d7e7a5c4e6df737626b321d50520a5216d3cf20a379159bbcb5`  
+4. Verify SHA-256: `8a0ffd62bb54d903e3816404eaa63beb9f3a872278d43667898c638dcd81dd62`  
 5. On Device A/B: install that EXE and follow `OPERATOR-LIVE-UAT.md` / `OPERATOR-AE-QUICK-CARD.md`
 
 Job may still end red because Release Gate fails while A–E are UNVERIFIED — that is expected. If **Publish Setup EXE to GitHub Release** succeeded, the EXE is on Releases anyway.

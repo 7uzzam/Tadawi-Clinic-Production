@@ -19,6 +19,13 @@
 - `docs/integration-v2-5-10/evidence/setupstate-runtime-evidence.json` (produced on CI Windows after install)
 - `tests/baseline/test-v2-5-10-setupstate-runtime-proof.js`
 
+## Installed Setup EXE (this phase)
+
+- Release: https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30821313092
+- SHA-256: `8a0ffd62bb54d903e3816404eaa63beb9f3a872278d43667898c638dcd81dd62`
+- Commit: `2e0e078`
+- CI: npm test + clean install + setup-state smoke + setupstate-runtime-evidence **PASS**; job red only on expected A–E gate
+
 ## Honesty
 
 - Production Candidate: **NO**
