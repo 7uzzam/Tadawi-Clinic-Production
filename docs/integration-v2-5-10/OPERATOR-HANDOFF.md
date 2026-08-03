@@ -19,19 +19,20 @@
 
 ---
 
-## Your Setup EXE
+## Your Setup EXE (ready now — this repo)
 
 | Field | Value |
 |-------|--------|
-| Releases | https://github.com/7uzzam/Tadawi-Clinic-Production/releases |
-| Tag pattern | `uat-v2-5-10-<run_id>` (newest prerelease) |
+| Release | https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30809358405 |
 | Asset | `HijamaManagement-Setup-2.0.1.exe` |
-| SHA-256 | *(fill from release notes / CI after first publish on this repo)* |
+| SHA-256 | `1645fda01b9e4a0406072fc213c98936b5c05153b2f23936297ab1588f4a255a` |
+| Commit | `1ea5cfc` (main SoT seed) |
+| Direct download | https://github.com/7uzzam/Tadawi-Clinic-Production/releases/download/uat-v2-5-10-30809358405/HijamaManagement-Setup-2.0.1.exe |
 
 Mobile tip: open Releases → download EXE → send to Windows PCs.  
-Details: `MOBILE-QUOTA-AND-EXE-DELIVERY.md`
+Details: `MOBILE-QUOTA-AND-EXE-DELIVERY.md` · Quick card: `OPERATOR-AE-QUICK-CARD.md`
 
-> Until the first UAT Release publishes on this repo, do **not** use archive-repo EXE links as SoT proof for this cutover.
+> Prefer newest `uat-v2-5-10-<run_id>` prerelease on **this** repo if a newer main publish appears. Do **not** use archive-repo EXE links as SoT proof.
 
 ---
 
