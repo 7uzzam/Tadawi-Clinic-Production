@@ -1,0 +1,96 @@
+name: V2-4 Real Cloud UAT
+
+# Requires protected environment secrets:
+# GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REFRESH_TOKEN (test account),
+# V24_TEST_CENTER_ID (optional). Never echo tokens.
+on:
+  workflow_dispatch:
+    inputs:
+      cleanup:
+        description: 'Cleanup test Drive namespace after run'
+        required: false
+        default: 'true'
+
+jobs:
+  real-cloud-uat:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    environment: v2-4-real-cloud
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Require real OAuth secrets
+        shell: pwsh
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+        run: |
+          if (-not $env:GOOGLE_OAUTH_CLIENT_ID -or -not $env:GOOGLE_OAUTH_CLIENT_SECRET -or -not $env:GOOGLE_OAUTH_REFRESH_TOKEN) {
+            Write-Host "REAL_CLOUD_SECRETS_MISSING"
+            Write-Host "Configure GitHub Environment v2-4-real-cloud secrets before closing V2-4."
+            exit 1
+          }
+          Write-Host "Secrets present (values not logged)"
+
+      - name: npm ci
+        shell: pwsh
+        run: |
+          npm ci --ignore-scripts
+          node -e "require('better-sqlite3')"
+
+      - name: Generate OAuth config from secrets (not committed)
+        shell: pwsh
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: |
+          node scripts/generate-oauth-config.mjs --strict
+          if (-not (Test-Path electron\cloud-oauth.config.json)) { throw "oauth config missing" }
+
+      - name: Tests
+        run: npm test
+
+      - name: Build Windows installer
+        env:
+          ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true'
+        run: npm run build:win
+
+      - name: Dual-device FileRemote baseline (always)
+        run: node tests/baseline/test-v2-4-outbox-dual-device.js
+
+      - name: Real Drive UAT harness
+        shell: pwsh
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+          V24_TEST_CENTER_ID: ${{ secrets.V24_TEST_CENTER_ID }}
+          V24_CLEANUP: ${{ github.event.inputs.cleanup }}
+        run: |
+          if (Test-Path scripts\v2-4-real-drive-uat.cjs) {
+            node scripts/v2-4-real-drive-uat.cjs
+          } else {
+            Write-Host "Harness scripts/v2-4-real-drive-uat.cjs missing — FAIL"
+            exit 1
+          }
+
+      - name: Upload release-evidence (redacted, slim)
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence
+          path: |
+            docs/integration-v2-4/evidence/**
+            !**/*token*
+            !**/*secret*
+            !**/source-release-*.tar.gz
+          retention-days: 1
+          if-no-files-found: warn
+          compression-level: 9

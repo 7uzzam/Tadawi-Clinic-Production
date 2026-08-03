@@ -1,0 +1,11 @@
+{
+  "id": "I01-ids-stable-and-center-confirm",
+  "title": "Org/Center/Device IDs + center confirm",
+  "result": "PASS",
+  "ms": 3,
+  "evidence": {
+    "center": "NJR-CLINIC-DEADBEEF",
+    "deviceUuid": "dev-1785483759923-xizwcjh6",
+    "org": "NJR-CLINIC-DEADBEEF"
+  }
+}

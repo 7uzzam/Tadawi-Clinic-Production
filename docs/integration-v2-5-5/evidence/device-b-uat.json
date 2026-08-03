@@ -1,0 +1,16 @@
+{
+  "device": "B",
+  "role": "reliability-adversarial-uat",
+  "startedAt": "2026-07-30T23:21:26.020Z",
+  "finishedAt": "2026-07-30T23:21:30.768Z",
+  "host": {
+    "platform": "linux",
+    "arch": "x64",
+    "release": "6.12.94+"
+  },
+  "scenarios": [
+    "P05-reliability",
+    "P03-perf-bench-median"
+  ],
+  "result": "PASS"
+}

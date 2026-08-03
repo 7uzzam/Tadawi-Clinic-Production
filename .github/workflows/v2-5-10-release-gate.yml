@@ -1,0 +1,214 @@
+name: V2-5.10 Quality Consolidation — Stage-1 Release Safety Gate
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, cursor/production-sot-seed-cea9]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: write
+  actions: write
+jobs:
+  v2-5-10-stage1-gate:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free Actions artifact storage (delete prior setup-exe)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Listing setup-exe artifacts…"
+          COUNT=0
+          while IFS= read -r id; do
+            [ -z "$id" ] && continue
+            echo "DELETE artifact $id"
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" || true
+            COUNT=$((COUNT+1))
+          done < <(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts" --paginate \
+            --jq '.artifacts[] | select(.name=="setup-exe" and .expired==false) | .id')
+          echo "Deleted setup-exe artifacts: $COUNT"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts" --jq \
+            '{total:.total_count, bytes:([.artifacts[].size_in_bytes]|add // 0)}'
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm }
+      - uses: ilammy/msvc-dev-cmd@v1
+        with: { vsversion: '2022' }
+      - name: npm ci
+        shell: pwsh
+        run: |
+          npm ci --ignore-scripts
+          node -e "require('better-sqlite3')"
+      - run: npm test
+      - name: V2-5.10 Stage-1 Backup V1 unit
+        run: node tests/baseline/test-v2-5-10-stage1-backup-v1.js
+      - name: V2-5.10 Stage-1 verify (honesty + V1 hide)
+        run: npm run verify:v2-5-10-stage1
+      - name: V2-5.9 unit (inherited)
+        run: node tests/baseline/test-v2-5-9-final-activation.js
+      - name: Residual closure unit
+        run: node tests/baseline/test-v2-5-9-residual-closure.js
+      - name: Prior gates
+        run: |
+          npm run verify:v2-5-8-release-gate
+          npm run verify:v2-5-stabilization-release-gate
+          npm run verify:v2-5-7-release-gate
+      - name: Windows build (real NSIS on windows-2022)
+        id: build
+        env: { ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true', CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
+        run: |
+          node scripts/generate-oauth-config.mjs
+          node scripts/generate-license-registries.mjs
+          node scripts/generate-brand-assets.mjs
+          npm run build:win
+      - name: Record Setup EXE SHA-256 + GHA metadata (STEP 1)
+        id: step1
+        if: success()
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist\HijamaManagement-Setup-*.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $setup) { throw 'Setup EXE missing after build:win' }
+          if ($setup.Length -lt 50MB) { throw "Setup EXE too small ($($setup.Length)) - invalid NSIS" }
+          $sha = (Get-FileHash -Algorithm SHA256 $setup.FullName).Hash.ToLowerInvariant()
+          $commit = (git rev-parse HEAD).Trim()
+          Write-Host "SETUP=$($setup.FullName)"
+          Write-Host "SIZE=$($setup.Length)"
+          Write-Host "SHA256=$sha"
+          "SETUP_PATH=$($setup.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "SETUP_SHA256=$sha" | Out-File -FilePath $env:GITHUB_ENV -Append
+          New-Item -ItemType Directory -Force -Path docs\integration-v2-5-9\evidence | Out-Null
+          New-Item -ItemType Directory -Force -Path docs\integration-v2-5-10\evidence | Out-Null
+          $meta = [ordered]@{
+            step = 'STEP1_BUILD'
+            program = 'v2-5.10'
+            stage = 1
+            at = (Get-Date).ToString('o')
+            githubRunId = $env:GITHUB_RUN_ID
+            githubRunUrl = "$($env:GITHUB_SERVER_URL)/$($env:GITHUB_REPOSITORY)/actions/runs/$($env:GITHUB_RUN_ID)"
+            commit = $commit
+            setupExe = $setup.Name
+            setupSizeBytes = $setup.Length
+            setupSha256 = $sha
+            node = (node -v)
+            runnerOs = $env:RUNNER_OS
+            runnerArch = $env:RUNNER_ARCH
+            closureMode = $true
+            scenariosAtoE = 'UNVERIFIED'
+            requirementPass = $false
+            backupV1CustomerUi = 'disabled_code'
+            architectureStage2 = 'BLOCKED'
+            artifactPolicy = 'slim-no-win-unpacked'
+          }
+          $meta | ConvertTo-Json -Depth 6 | Set-Content docs\integration-v2-5-9\evidence\gha-step1-build.json -Encoding UTF8
+          $meta | ConvertTo-Json -Depth 6 | Set-Content docs\integration-v2-5-10\evidence\gha-step1-build.json -Encoding UTF8
+      - name: Clean install Setup EXE + smoke (STEP 2)
+        id: smoke
+        if: success()
+        shell: pwsh
+        run: |
+          & "$env:GITHUB_WORKSPACE/scripts/windows-uat/Install-And-Prove-V259-AE.ps1" -SkipUnit -CleanProfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: A-E runtime harness (records UNVERIFIED until live proof)
+        id: ae
+        if: success()
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $installed = Join-Path $env:LOCALAPPDATA 'Programs\Hijama Management System\Hijama Management System.exe'
+          if (Test-Path $installed) {
+            $env:HIJAMA_WINDOWS_INSTALLED = '1'
+            $env:HIJAMA_INSTALLED_EXE = $installed
+          }
+          $env:HIJAMA_SETUP_SHA256 = $env:SETUP_SHA256
+          if ($env:SETUP_PATH) { $env:HIJAMA_SETUP_EXE = $env:SETUP_PATH }
+          node scripts/windows-uat/v2-5-9-ae-runtime.cjs
+      - name: V2-5.9 release gate (fails while Windows UAT UNVERIFIED)
+        id: gate
+        if: always() && steps.build.outcome == 'success'
+        continue-on-error: true
+        run: npm run verify:v2-5-9-release-gate
+      - name: Package slim CI artifacts
+        id: package
+        if: always() && steps.build.outcome == 'success'
+        shell: pwsh
+        run: |
+          & "$env:GITHUB_WORKSPACE/scripts/ci/package-v259-artifacts.ps1" -Mode all
+      # Setup EXE is published as a GitHub Release asset (does NOT use Actions artifact storage).
+      # Large setup-exe Actions artifacts are intentionally skipped to avoid private-repo quota blocks.
+      - name: Publish Setup EXE to GitHub Release (UAT channel)
+        id: uat_release
+        if: always() && steps.step1.outcome == 'success' && github.event_name != 'pull_request'
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: uat-v2-5-10-${{ github.run_id }}
+          name: UAT Setup EXE — V2-5.10 run ${{ github.run_id }}
+          prerelease: true
+          draft: false
+          fail_on_unmatched_files: true
+          files: |
+            dist/HijamaManagement-Setup-*.exe
+          body: |
+            ## UAT / Category A channel (not Production Candidate)
+
+            - Program: V2-5.10
+            - Commit: `${{ github.sha }}`
+            - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - Setup SHA-256: `${{ env.SETUP_SHA256 }}`
+            - Requirements / A–E: still UNVERIFIED until live operator evidence
+
+            Download the Setup EXE below on any device, copy to Windows PCs for Scenario A–E.
+            Follow `docs/integration-v2-5-10/OPERATOR-LIVE-UAT.md`.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Upload windows-smoke (tiny)
+        if: always() && steps.smoke.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-smoke
+          path: ci-artifacts/windows-smoke/**
+          retention-days: 1
+          if-no-files-found: warn
+          compression-level: 9
+      - name: Upload release-evidence (tiny)
+        if: always() && steps.package.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence
+          path: ci-artifacts/release-evidence/**
+          retention-days: 1
+          if-no-files-found: warn
+          compression-level: 9
+      - name: Upload release-gate (tiny)
+        if: always() && steps.package.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-gate
+          path: ci-artifacts/release-gate/**
+          retention-days: 1
+          if-no-files-found: warn
+          compression-level: 9
+      - name: Upload runtime-logs (failure only, tiny)
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-logs
+          path: |
+            docs/integration-v2-5-9/evidence/ae-scenarios/*.log
+            docs/integration-v2-5-10/evidence/**
+            ci-artifacts/package-manifest.json
+          retention-days: 1
+          if-no-files-found: warn
+          compression-level: 9
+      - name: Fail job if release gate failed
+        if: always() && steps.gate.outcome == 'failure'
+        shell: pwsh
+        run: |
+          Write-Host 'Release gate failed (expected while Scenario A-E UNVERIFIED). Stage 2 Architecture remains BLOCKED.'
+          if ($env:SETUP_SHA256) { Write-Host "Setup SHA256=$env:SETUP_SHA256 — download from Releases tag uat-v2-5-10-$env:GITHUB_RUN_ID if publish succeeded." }
+          exit 1

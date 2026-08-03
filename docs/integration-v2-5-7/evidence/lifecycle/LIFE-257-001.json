@@ -1,0 +1,27 @@
+{
+  "id": "LIFE-257-001",
+  "title": "Clean install",
+  "ok": true,
+  "result": "PASS",
+  "at": "2026-07-31T00:05:51.346Z",
+  "evidence": {
+    "policy": "NSIS oneClick=false allowToChangeInstallationDirectory; fresh INSTDIR",
+    "artifacts": {
+      "setup": {
+        "path": "dist/HijamaManagement-Setup-2.0.1.exe",
+        "sizeBytes": 554328,
+        "sha256": "73adfa5ce40123916f92efb1971b7b125e601b34a1a3f0fcbe9c53fa87d8d2a7",
+        "mtime": "2026-07-30T20:18:26.017Z"
+      },
+      "winUnpacked": {
+        "path": "dist/win-unpacked/Hijama Management System.exe",
+        "sizeBytes": 225949696,
+        "sha256": "8fe1a2c82d281c9e30167377ed0e69c84b414686e25c84ca9e4c0ed1a711869e",
+        "mtime": "2026-07-30T20:16:44.661Z"
+      },
+      "distDeferred": false
+    },
+    "nsisTest": true,
+    "nsisTargetConfigured": true
+  }
+}

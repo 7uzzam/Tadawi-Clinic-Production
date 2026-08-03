@@ -1,0 +1,52 @@
+name: V2-4 Release Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - integration/hybrid-cloud-owner-v2
+
+jobs:
+  release-gate:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          vsversion: '2022'
+
+      - name: npm ci
+        shell: pwsh
+        run: |
+          npm ci --ignore-scripts
+          node -e "require('better-sqlite3')"
+
+      - name: All automated tests
+        run: npm test
+
+      - name: V2-3.5 regression verifier
+        run: npm run verify:release-gate
+
+      - name: Generate packaging inputs
+        run: |
+          node scripts/generate-oauth-config.mjs
+          node scripts/generate-license-registries.mjs
+          node scripts/generate-brand-assets.mjs
+
+      - name: Windows build
+        env:
+          ELECTRON_BUILDER_DISABLE_CODE_SIGN_WARNING: 'true'
+        run: npm run build:win
+
+      - name: V2-4 completion gate
+        run: npm run verify:v2-4-release-gate
+
+      - name: Fail if Cloud Sync / Result columns not PASS
+        run: node scripts/verify-v2-4-sync001.cjs

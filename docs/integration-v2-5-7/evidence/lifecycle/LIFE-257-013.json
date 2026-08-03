@@ -1,0 +1,12 @@
+{
+  "id": "LIFE-257-013",
+  "title": "Database connection open during update",
+  "ok": true,
+  "result": "PASS",
+  "at": "2026-07-31T00:05:51.347Z",
+  "evidence": {
+    "policy": "userData/database outside INSTDIR; upgrade does not delete Cupping Center DB; connection.js refuses corrupt empty replace",
+    "updatePreservesUserData": true,
+    "corruptRefuse": true
+  }
+}

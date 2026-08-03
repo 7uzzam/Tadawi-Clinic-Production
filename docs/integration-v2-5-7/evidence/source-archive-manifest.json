@@ -1,0 +1,31 @@
+{
+  "at": "2026-07-31T00:05:51.162Z",
+  "commit": "074ddc0e709360b262dad39aa49ff54ba9908685",
+  "archive": {
+    "path": "docs/integration-v2-5-7/evidence/source-release-074ddc0e7093.tar.gz",
+    "sizeBytes": 483251,
+    "sha256": "07eded019726eb653fda45639a791e699cb13167a26da080482b7950f43251f7",
+    "mtime": "2026-07-31T00:05:51.158Z",
+    "ok": true
+  },
+  "method": "tar",
+  "paths": [
+    "package.json",
+    "package-lock.json",
+    "electron",
+    "database",
+    "cloud",
+    "build",
+    "license",
+    "renderer",
+    "scripts/verify-v2-5-7-completion.cjs",
+    "scripts/v2-5-7-release-artifacts.cjs",
+    "scripts/v2-5-7-migration-harness.cjs",
+    "scripts/v2-5-7-lifecycle-matrix.cjs",
+    "docs/integration-v2-5-7/00-CURRENT-REALITY.md",
+    "docs/integration-v2-5-7/01-TARGET-DESIGN.md",
+    "docs/integration-v2-5-7/09-RELEASE-READINESS.md",
+    "docs/integration-v2-5-7/REQUIREMENTS-TRACEABILITY.md",
+    ".github/workflows/v2-5-7-release-gate.yml"
+  ]
+}

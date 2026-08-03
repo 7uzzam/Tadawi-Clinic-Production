@@ -1,0 +1,115 @@
+{
+  "phase": "V2-5.7",
+  "at": "2026-07-31T00:05:51.164Z",
+  "version": "2.0.1",
+  "productName": "Hijama Management System",
+  "platform": "linux",
+  "arch": "x64",
+  "distExists": true,
+  "artifactsPresent": true,
+  "distDeferred": false,
+  "artifacts": {
+    "setup": {
+      "path": "dist/HijamaManagement-Setup-2.0.1.exe",
+      "sizeBytes": 554328,
+      "sha256": "73adfa5ce40123916f92efb1971b7b125e601b34a1a3f0fcbe9c53fa87d8d2a7",
+      "mtime": "2026-07-30T20:18:26.017Z"
+    },
+    "allSetupExes": [
+      {
+        "path": "dist/HijamaManagement-Setup-2.0.0.exe",
+        "sizeBytes": 550592,
+        "sha256": "3b22f3e5c0dadc85ae476df02cdabad9907594b3b680f3a883fd554132c010b5",
+        "mtime": "2026-07-29T10:09:16.778Z"
+      },
+      {
+        "path": "dist/HijamaManagement-Setup-2.0.1.exe",
+        "sizeBytes": 554328,
+        "sha256": "73adfa5ce40123916f92efb1971b7b125e601b34a1a3f0fcbe9c53fa87d8d2a7",
+        "mtime": "2026-07-30T20:18:26.017Z"
+      }
+    ],
+    "winUnpacked": {
+      "path": "dist/win-unpacked/Hijama Management System.exe",
+      "sizeBytes": 225949696,
+      "sha256": "8fe1a2c82d281c9e30167377ed0e69c84b414686e25c84ca9e4c0ed1a711869e",
+      "mtime": "2026-07-30T20:16:44.661Z"
+    },
+    "winUnpackedPresent": true,
+    "portable": {
+      "supported": false,
+      "reason": "package.json build.win.target lists only nsis (x64); portable is not an official build target for V2-5.7",
+      "configuredTargets": [
+        "nsis"
+      ],
+      "foundArtifacts": []
+    },
+    "icons": {
+      "appIcon": "build/Program-Icon.ico",
+      "winIcon": "build/Program-Icon.ico",
+      "installerIcon": "build/Program-Icon.ico",
+      "uninstallerIcon": "build/Program-Icon.ico",
+      "installerHeaderIcon": "build/Program-Icon.ico",
+      "exists": {
+        "appIcon": true,
+        "winIcon": true,
+        "installerIcon": true,
+        "uninstallerIcon": true,
+        "installerHeaderIcon": true
+      }
+    },
+    "iconInspect": {
+      "ok": true,
+      "exePath": "/workspace/dist/win-unpacked/Hijama Management System.exe",
+      "sizeBytes": 225949696,
+      "iconGroupCount": 1,
+      "iconResourceEntries": 8,
+      "groups": [
+        {
+          "id": 1,
+          "lang": 1033,
+          "iconCount": 7
+        }
+      ],
+      "inspectedAt": "2026-07-31T00:05:51.088Z"
+    },
+    "sourceArchive": {
+      "at": "2026-07-31T00:05:51.162Z",
+      "commit": "074ddc0e709360b262dad39aa49ff54ba9908685",
+      "archive": {
+        "path": "docs/integration-v2-5-7/evidence/source-release-074ddc0e7093.tar.gz",
+        "sizeBytes": 483251,
+        "sha256": "07eded019726eb653fda45639a791e699cb13167a26da080482b7950f43251f7",
+        "mtime": "2026-07-31T00:05:51.158Z",
+        "ok": true
+      },
+      "method": "tar",
+      "paths": [
+        "package.json",
+        "package-lock.json",
+        "electron",
+        "database",
+        "cloud",
+        "build",
+        "license",
+        "renderer",
+        "scripts/verify-v2-5-7-completion.cjs",
+        "scripts/v2-5-7-release-artifacts.cjs",
+        "scripts/v2-5-7-migration-harness.cjs",
+        "scripts/v2-5-7-lifecycle-matrix.cjs",
+        "docs/integration-v2-5-7/00-CURRENT-REALITY.md",
+        "docs/integration-v2-5-7/01-TARGET-DESIGN.md",
+        "docs/integration-v2-5-7/09-RELEASE-READINESS.md",
+        "docs/integration-v2-5-7/REQUIREMENTS-TRACEABILITY.md",
+        ".github/workflows/v2-5-7-release-gate.yml"
+      ]
+    }
+  },
+  "notes": [
+    "Portable is unsupported unless listed in package.json build.win.target",
+    "Setup exe on non-Windows hosts may be a wine/NSIS stub; win-unpacked Electron binary is authoritative when present",
+    "Icon paths taken from package.json build / nsis; PE icon groups inspected via resedit when EXE present",
+    "When dist/ is absent (npm test before build:win), indexer still exits 0 with distDeferred=true; re-run after build for SHA evidence"
+  ],
+  "ok": true
+}
