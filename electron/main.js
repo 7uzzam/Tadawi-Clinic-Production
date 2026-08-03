@@ -74,6 +74,7 @@ const {
   downloadSyncFile: backupDownloadSyncFile,
   disconnectCloud: backupDisconnectCloud,
   listCloudBackups: backupListCloudBackups,
+  discoverCloudRestorePoints: backupDiscoverCloudRestorePoints,
   downloadCloudBackup: backupDownloadCloudBackup,
   deleteCloudBackup: backupDeleteCloudBackup,
   verifyCloudBackup: backupVerifyCloudBackup,
@@ -481,6 +482,22 @@ handle('backup:listCloudBackups', async (_e, provider, prefix) =>
     V.asEnum(provider, CLOUD_PROVIDERS, { defaultValue: 'google' }),
     V.asOptionalString(prefix, { name: 'prefix', max: 200 })
   ));
+
+handle('backup:discoverCloudRestorePoints', async (_e, options) => {
+  const opts = V.asObject(options || {}, { name: 'options' });
+  let timeoutMs;
+  if (opts.timeoutMs != null) {
+    const n = Number(opts.timeoutMs);
+    if (!Number.isFinite(n) || n < 1000 || n > 20000) V.fail('INVALID_TIMEOUT', 'timeoutMs_out_of_range');
+    timeoutMs = Math.floor(n);
+  }
+  return backupDiscoverCloudRestorePoints({
+    centerId: V.asOptionalString(opts.centerId, { name: 'centerId', max: 120 }),
+    branchId: V.asOptionalString(opts.branchId, { name: 'branchId', max: 120 }),
+    centerName: V.asOptionalString(opts.centerName, { name: 'centerName', max: 200 }),
+    timeoutMs,
+  });
+});
 
 handle('backup:downloadCloudBackup', async (_e, remotePath, provider) => {
   const rp = V.asString(remotePath, { name: 'remotePath', max: 1000, required: true });

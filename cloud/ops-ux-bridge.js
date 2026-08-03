@@ -39,7 +39,7 @@
       role: a11y.role || 'dialog',
       'aria-modal': 'true',
       'aria-labelledby': 'ops-ux-restore-title',
-      style: 'display:none;position:fixed;inset:0;z-index:99990;background:rgba(15,23,42,.45);align-items:center;justify-content:center;padding:16px',
+      style: 'display:none;position:fixed;inset:0;z-index:100050;background:rgba(15,23,42,.45);align-items:center;justify-content:center;padding:16px',
     });
     root.innerHTML = `
       <div class="ops-ux-dialog-panel" tabindex="-1" style="background:var(--card,#fff);color:var(--text,#111);max-width:560px;width:100%;max-height:90vh;overflow:auto;border-radius:12px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.2)">

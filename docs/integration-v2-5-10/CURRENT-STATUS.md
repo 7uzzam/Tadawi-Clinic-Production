@@ -14,8 +14,9 @@
 | Release Gate | **FAIL** until A–E evidence on Installed Setup EXE from **this** repo |
 | Requirements | **0/40 PASS · 40 UNVERIFIED** |
 | Category A | **BLOCKED** on live operator proof (Devices A/B) |
+| Scenario C (cloud restore) | **FAIL** on prior hang — Fast Discovery fix landed; **retest on new Installed EXE required** |
 | Category B | **COMPLETE** (offline engineering) |
-| Offline engineering backlog | **EMPTY** for V2-5.10 safe scope |
+| Offline engineering backlog | Fast Discovery / Confirmed Restore fix shipped 2026-08-03 — see `CLOUD-DISCOVERY-RESTORE-FIX.md` |
 | Scores refreshed? | **NO** — Overall baseline **58** (do not inflate without independent re-score after A–E) |
 | Repository role | **This repo = Production SoT** · old repo = **archive** (do not delete) |
 

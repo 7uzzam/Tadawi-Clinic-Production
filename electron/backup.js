@@ -85,6 +85,11 @@ async function listCloudBackups(provider, prefix) {
   return cloud.listCloudBackups(provider || 'google', prefix);
 }
 
+async function discoverCloudRestorePoints(options) {
+  const discovery = require('./cloud-data-discovery');
+  return discovery.discoverCloudRestorePoints(options || {});
+}
+
 async function downloadCloudBackup(remotePath, provider) {
   return cloud.downloadCloudBackup(remotePath, provider || 'google');
 }
@@ -156,6 +161,7 @@ module.exports = {
   downloadSyncFile,
   disconnectCloud,
   listCloudBackups,
+  discoverCloudRestorePoints,
   downloadCloudBackup,
   deleteCloudBackup,
   verifyCloudBackup,
