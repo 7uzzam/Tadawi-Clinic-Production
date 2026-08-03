@@ -23,11 +23,11 @@
 
 | Field | Value |
 |-------|--------|
-| Release | https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30809358405 |
+| Release | https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30809995920 |
 | Asset | `HijamaManagement-Setup-2.0.1.exe` |
-| SHA-256 | `1645fda01b9e4a0406072fc213c98936b5c05153b2f23936297ab1588f4a255a` |
-| Commit | `1ea5cfc` (main SoT seed) |
-| Direct download | https://github.com/7uzzam/Tadawi-Clinic-Production/releases/download/uat-v2-5-10-30809358405/HijamaManagement-Setup-2.0.1.exe |
+| SHA-256 | `4dd148015d6dcb9b83e7f4882662023f69ec602e0fbe104fc4ce9967c3b13875` |
+| Commit | `0638883` (main tip) |
+| Direct download | https://github.com/7uzzam/Tadawi-Clinic-Production/releases/download/uat-v2-5-10-30809995920/HijamaManagement-Setup-2.0.1.exe |
 
 Mobile tip: open Releases → download EXE → send to Windows PCs.  
 Details: `MOBILE-QUOTA-AND-EXE-DELIVERY.md` · Quick card: `OPERATOR-AE-QUICK-CARD.md`

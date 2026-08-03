@@ -8,9 +8,9 @@
 
 | Field | Value |
 |-------|--------|
-| Release | https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30809358405 |
+| Release | https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30809995920 |
 | Asset | `HijamaManagement-Setup-2.0.1.exe` |
-| SHA-256 | `1645fda01b9e4a0406072fc213c98936b5c05153b2f23936297ab1588f4a255a` |
+| SHA-256 | `4dd148015d6dcb9b83e7f4882662023f69ec602e0fbe104fc4ce9967c3b13875` |
 
 Confirm the downloaded file’s SHA-256 matches before install. Prefer a newer `uat-v2-5-10-<run_id>` if one appears on this repo.  
 
