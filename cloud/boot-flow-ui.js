@@ -207,13 +207,47 @@
   function markBootComplete() {
     if (!isBootComplete()) return false;
     try { localStorage.setItem(BOOT_DONE_KEY, '1'); } catch { /* empty */ }
-    try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true }); } catch { /* empty */ }
+    try { global.SetupStateService?.markBootCompleteDurable?.(); } catch { /* empty */ }
+    try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true, startBackup: true }); } catch { /* empty */ }
     global.AuditLogger?.logSyncEvent?.('BOOTSTRAP', { summary: 'V2-5.9 activation wizard complete' });
     return true;
   }
 
   function needsBootScreen() {
+    // Honor durable boot-complete flag once prerequisites still hold.
+    if (bootDonePersisted() && isBootComplete()) return false;
+    const ss = global.SetupStateService?.getState?.({ ignoreRestart: true });
+    if (ss?.state === 'READY') return false;
     return !isBootComplete();
+  }
+
+  function bootDonePersisted() {
+    try { return localStorage.getItem(BOOT_DONE_KEY) === '1'; } catch { return false; }
+  }
+
+  /**
+   * Call once on app startup after relaunch — consume restart marker and never reopen Ready.
+   */
+  function onAppStartupAfterRelaunch() {
+    const consumed = global.SetupStateService?.consumeRestartMarker?.()
+      || (() => {
+        try {
+          if (localStorage.getItem(RESTART_REQUIRED_KEY)) {
+            localStorage.removeItem(RESTART_REQUIRED_KEY);
+            localStorage.setItem(BOOT_DONE_KEY, '1');
+            return { consumed: true, loopDetected: false };
+          }
+        } catch { /* empty */ }
+        return { consumed: false };
+      })();
+    if (consumed?.loopDetected) {
+      global.notify?.('⚠️ حلقة إعادة تشغيل مكتشفة — راجع Diagnostic في أدوات الدعم', 'danger');
+    }
+    if (consumed?.consumed && isBootComplete()) {
+      close({ showLogin: true });
+      applyLoginGate();
+    }
+    return consumed;
   }
 
   function shouldAutoOpenBoot() {
@@ -489,6 +523,7 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
     if (!nav) return;
     nav.innerHTML = '';
     const steps = stepsFor(w.path);
+    const step = steps[w.currentStep];
     const prev = document.createElement('button');
     prev.type = 'button';
     prev.className = 'btn btn-ghost btn-sm';
@@ -496,12 +531,17 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
     prev.onclick = () => prevStep();
     nav.appendChild(prev);
 
+    // On ready step: no duplicate "إنهاء والدخول" — primary CTA lives in step actions only.
+    if (step === 'ready') {
+      return;
+    }
+
     const next = document.createElement('button');
     next.type = 'button';
     next.className = 'btn btn-primary btn-sm';
     next.id = 'bf-next-btn';
-    next.textContent = w.currentStep >= steps.length - 1 ? '✓ إنهاء والدخول' : 'متابعة ▶';
-    next.disabled = !validateStep(steps[w.currentStep]);
+    next.textContent = 'متابعة ▶';
+    next.disabled = !validateStep(step);
     next.onclick = () => advanceWizard();
     nav.appendChild(next);
   }
@@ -1213,7 +1253,15 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
         break;
       }
       case 'sync': {
-        content.innerHTML = '<p>نفّذ المزامنة الأولية بعد الاستعادة/البدء.</p>';
+        const readiness = global.SyncEngine?.getReadiness?.() || null;
+        content.innerHTML = `<p>نفّذ المزامنة الأولية بعد الاستعادة/البدء.</p>
+          <div class="bf-source-meta" id="bf-sync-readiness">${
+            readiness
+              ? (readiness.ready
+                ? `✅ الجاهزية: ${readiness.state}`
+                : `⚠️ غير جاهز بعد: ${(readiness.missing || []).join(', ') || readiness.messageAr || ''}`)
+              : 'جارٍ فحص جاهزية المزامنة…'
+          }</div>`;
         addBtn(actions, '▶️ بدء المزامنة الأولية', 'btn-primary', async () => {
           if (syncInFlight || ownerCreateInFlight()) {
             setStatus('⚠️ عملية جارية — انتظر', true);
@@ -1224,25 +1272,36 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
           setStatus('⏳ جارٍ المزامنة...');
           try {
             let ok = true;
-            if (global.SyncEngine?.runOnce) {
-              const r = await global.SyncEngine.runOnce();
+            try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true, startBackup: true }); } catch { /* empty */ }
+            const ready = global.SyncEngine?.getReadiness?.({ force: true });
+            if (ready && !ready.ready) {
+              setStatus(`⚠️ ${ready.messageAr || ('غير جاهز: ' + (ready.missing || []).join(', '))}`, true);
+              ok = false;
+            } else if (global.SyncEngine?.runOnce) {
+              if (!global.SyncEngine.isRunning?.()) {
+                global.SyncEngine.start?.({ pollIntervalMs: global.SyncState?.load?.()?.pollIntervalMs });
+              }
+              const r = await global.SyncEngine.runOnce({ force: true });
               ok = r?.ok !== false;
+              if (!ok) setStatus(`⚠️ فشلت المزامنة: ${r?.error || r?.message || ''}`, true);
             } else if (global.CloudBootstrap?.hydrateFromDrive && loadWizard().restoreChoice === 'cloud') {
               const r = await global.CloudBootstrap.hydrateFromDrive(null, { allowMissingLicense: true });
               ok = !!r?.ok || r?.skipped;
             }
-            const bootstrap = await global.ensureCloudBootstrapReady?.();
-            if (bootstrap?.runNewDeviceBootstrap) {
-              await bootstrap.runNewDeviceBootstrap({
-                branchId: global.DeviceConfig?.load?.()?.lockedBranchId,
-                startSync: true,
-                allowMissingLicense: true
-              });
+            if (ok) {
+              const bootstrap = await global.ensureCloudBootstrapReady?.();
+              if (bootstrap?.runNewDeviceBootstrap) {
+                await bootstrap.runNewDeviceBootstrap({
+                  branchId: global.DeviceConfig?.load?.()?.lockedBranchId,
+                  startSync: true,
+                  allowMissingLicense: true
+                });
+              }
             }
             const w2 = loadWizard();
             w2.syncDone = ok !== false;
             saveWizard(w2);
-            setStatus(w2.syncDone ? '✅ اكتملت المزامنة الأولية' : '⚠️ تعذّرت المزامنة');
+            if (ok) setStatus('✅ اكتملت المزامنة الأولية');
           } catch (e) {
             setStatusFromErr(e, 'sync_interrupted');
           } finally {
@@ -1264,27 +1323,40 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
           ['مصدر البيانات', hasRestoreDecision()],
           ['المزامنة', hasSyncDone()]
         ];
+        const setupState = global.SetupStateService?.getState?.({ ignoreRestart: true });
         content.innerHTML = `<ul style="font-size:13px;line-height:1.9">${checks.map(([l, ok]) => `<li>${ok ? '✅' : '❌'} ${l}</li>`).join('')}</ul>
-          <p>تم تسجيل الجهاز. <strong>أعد تشغيل التطبيق</strong> لتطبيق التفعيل واستكمال المزامنة، ثم سجّل الدخول بحساب Owner — سيُطلب تغيير كلمة المرور الافتراضية إجبارياً قبل الاستخدام.</p>`;
-        addBtn(actions, '🚀 إتمام الإعداد وفتح تسجيل الدخول', 'btn-primary', () => {
+          <p>اكتمل الإعداد بنجاح. اضغط الزر الوحيد أدناه لإعادة تشغيل البرنامج وتطبيق التفعيل، ثم سجّل الدخول.</p>
+          <p class="bf-source-meta">لن تُعرض هذه الشاشة مرة أخرى بعد إعادة التشغيل الناجحة.</p>`;
+        // Single terminal CTA — no duplicate finish / login / restart buttons.
+        addBtn(actions, '🔄 إعادة تشغيل البرنامج وتطبيق الإعداد', 'btn-primary', async () => {
           if (!isBootComplete()) {
             setStatus('⚠️ لم تكتمل جميع المتطلبات', true);
             return;
           }
           markBootComplete();
-          try { localStorage.setItem(RESTART_REQUIRED_KEY, '1'); } catch { /* empty */ }
-          close({ showLogin: true });
-          global.filterLoginUsers?.();
-          global.notify?.('✅ اكتمل الإعداد — يُفضَّل إعادة تشغيل التطبيق ثم تسجيل الدخول', 'success');
-        }, !isBootComplete());
-        addBtn(actions, '🔄 طلب إعادة تشغيل التطبيق', 'btn-secondary', () => {
-          try { localStorage.setItem(RESTART_REQUIRED_KEY, '1'); } catch { /* empty */ }
-          if (global.cuppingElectron?.relaunchApp || global.tadawiElectron?.relaunchApp) {
-            (global.cuppingElectron || global.tadawiElectron).relaunchApp();
+          try { global.SetupStateService?.markBootCompleteDurable?.(); } catch { /* empty */ }
+          const meta = global.SetupStateService?.markRestartRequired?.('setup_finalize')
+            || (() => { try { localStorage.setItem(RESTART_REQUIRED_KEY, '1'); } catch { /* empty */ } return null; })();
+          setStatus('⏳ جارٍ حفظ الحالة وإعادة التشغيل…');
+          try {
+            // Flush durable state before relaunch
+            try { global.DB?.set?.('settings', global.settings); } catch { /* empty */ }
+            try { global.SyncEngine?.stop?.(); } catch { /* empty */ }
+            const api = global.cuppingElectron || global.tadawiElectron;
+            if (api?.relaunchApp) {
+              await api.relaunchApp({ reason: meta?.id || 'setup_finalize' });
+              return;
+            }
+            if (api?.app?.relaunch) {
+              await api.app.relaunch();
+              return;
+            }
+          } catch (e) {
+            setStatus('⚠️ تعذّر relaunch التلقائي — أعد التشغيل يدوياً من النظام', true);
             return;
           }
-          setStatus('ℹ️ أعد تشغيل التطبيق يدوياً من قائمة النظام لتطبيق التفعيل', true);
-        });
+          setStatus('ℹ️ أعد تشغيل التطبيق يدوياً من قائمة النظام لتطبيق الإعداد', true);
+        }, !isBootComplete());
         break;
       }
       default:
@@ -1458,15 +1530,30 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
 
   function updateLoginSetupHint() {
     const el = document.getElementById('login-setup-hint');
-    if (!el) return;
-    if (isBootComplete()) {
-      el.style.display = 'none';
-      el.textContent = '';
-      return;
+    const bootCta = document.getElementById('login-boot-cta')
+      || document.querySelector('#loginScreen .login-activate-btn, #loginScreen button[onclick*="openBootWizard"]');
+    const complete = isBootComplete() || global.SetupStateService?.getState?.()?.state === 'READY';
+    if (el) {
+      if (complete) {
+        el.style.display = 'none';
+        el.textContent = '';
+      } else {
+        el.style.display = '';
+        el.innerHTML = '💡 لم يكتمل الإعداد — <button type="button" class="btn btn-primary btn-sm" id="login-open-activation-wizard">🚀 بدء الإعداد الموحّد</button>';
+        document.getElementById('login-open-activation-wizard')?.addEventListener('click', () => forceOpen());
+      }
     }
-    el.style.display = '';
-    el.innerHTML = '💡 لم يكتمل الإعداد — <button type="button" class="btn btn-primary btn-sm" id="login-open-activation-wizard">🚀 بدء الإعداد الموحّد</button>';
-    document.getElementById('login-open-activation-wizard')?.addEventListener('click', () => forceOpen());
+    // Hide completed-step boot CTA on login when READY
+    if (bootCta) {
+      bootCta.style.display = complete ? 'none' : '';
+      bootCta.hidden = !!complete;
+    }
+    // Hide center-setup support entry for normal READY users
+    const centerSupport = document.getElementById('login-center-support')
+      || document.querySelector('#loginScreen details.login-support-details');
+    if (centerSupport && complete && !global.currentUser?.isDev) {
+      centerSupport.style.display = 'none';
+    }
   }
 
   function applyLoginGate() {
@@ -1493,6 +1580,7 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
     shouldAutoOpenBoot,
     isBootComplete,
     markBootComplete,
+    onAppStartupAfterRelaunch,
     canShowLogin,
     canOpenDashboard,
     ensureLoginAccessible,
@@ -1509,8 +1597,13 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
     hasOwnerAccount: hasOwnerPasswordAccount,
     hasGoogle,
     hasValidLicense,
+    hasCenterData,
+    hasBranch,
+    hasDeviceBranch,
+    hasRestoreDecision,
+    hasSyncDone,
     autoDiscoverActivationAfterGoogle,
     isCriticalOpInFlight,
-    version: 'v2-5.9'
+    version: 'v2-5.10'
   };
 })(typeof window !== 'undefined' ? window : globalThis);

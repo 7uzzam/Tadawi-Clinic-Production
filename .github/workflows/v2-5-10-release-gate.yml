@@ -119,6 +119,8 @@ jobs:
         run: |
           & "$env:GITHUB_WORKSPACE/scripts/windows-uat/Install-And-Prove-V259-AE.ps1" -SkipUnit -CleanProfile
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/windows-uat/v2-5-10-setup-state-smoke.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: A-E runtime harness (records UNVERIFIED until live proof)
         id: ae
         if: success()

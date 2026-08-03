@@ -728,6 +728,20 @@ handle('app:getRuntimeInfo', () => ({
   },
 }));
 
+handle('app:relaunch', async (_e, options) => {
+  const opts = V.asObject(options || {}, { name: 'options' });
+  setTimeout(() => {
+    try {
+      const extra = opts.reason ? [`--setup-relaunch=${String(opts.reason).slice(0, 64)}`] : [];
+      app.relaunch({ args: process.argv.slice(1).concat(extra) });
+    } catch {
+      app.relaunch();
+    }
+    app.exit(0);
+  }, 250);
+  return { ok: true, relaunching: true };
+});
+
 handle('app:getDeviceFingerprintParts', () => {
   const os = require('os');
   const crypto = require('crypto');
