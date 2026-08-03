@@ -40,8 +40,8 @@ Owner migrated **before** Production Candidate. Live UAT A–E runs here. Migrat
 ## Setup EXE delivery
 
 - Channel: **GitHub Releases** prerelease tags `uat-v2-5-10-<run_id>` on **this** repo  
-- Current UAT: https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30809358405  
-- SHA-256: `1645fda01b9e4a0406072fc213c98936b5c05153b2f23936297ab1588f4a255a`  
+- Current UAT: https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30809995920  
+- SHA-256: `4dd148015d6dcb9b83e7f4882662023f69ec602e0fbe104fc4ce9967c3b13875`  
 - Prefer newest UAT prerelease if a newer main publish appears  
 - Do **not** rely on large Actions `setup-exe` artifacts  
 - Mobile: `MOBILE-QUOTA-AND-EXE-DELIVERY.md`  
