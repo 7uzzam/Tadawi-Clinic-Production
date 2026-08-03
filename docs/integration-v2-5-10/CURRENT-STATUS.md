@@ -14,9 +14,10 @@
 | Release Gate | **FAIL** until A–E evidence on Installed Setup EXE from **this** repo |
 | Requirements | **0/40 PASS · 40 UNVERIFIED** |
 | Category A | **BLOCKED** on live operator proof (Devices A/B) |
-| Scenario C (cloud restore) | **FAIL** on prior hang — Fast Discovery fix landed; **retest on new Installed EXE required** |
+| Scenario C (cloud restore) | **FAIL** until retest on discovery-fix EXE |
+| Setup / Sync / Owner password | **FAIL** on prior build — fix landed; retest on new Installed EXE |
 | Category B | **COMPLETE** (offline engineering) |
-| Offline engineering backlog | Fast Discovery / Confirmed Restore fix shipped 2026-08-03 — see `CLOUD-DISCOVERY-RESTORE-FIX.md` |
+| Offline engineering backlog | SetupState + Sync readiness + Owner password persist + Ready CTA cleanup shipped 2026-08-03 — see `SETUP-STATE-SYNC-AUTH-FIX.md` |
 | Scores refreshed? | **NO** — Overall baseline **58** (do not inflate without independent re-score after A–E) |
 | Repository role | **This repo = Production SoT** · old repo = **archive** (do not delete) |
 

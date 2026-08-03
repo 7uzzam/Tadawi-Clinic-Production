@@ -530,10 +530,118 @@
     }
   }
 
+  function isRunning() {
+    return !!_pollTimer;
+  }
+
+  /**
+   * Detailed readiness — never a vague "not ready" without reasons.
+   */
+  function getReadiness(options) {
+    options = options || {};
+    const missing = [];
+    const googleOk = !!global.DriveAdapter?.isConnected?.()
+      || !!(global.settings?.backup?.providers?.google?.connected
+        && !global.settings?.backup?.providers?.google?.userDisconnected);
+    const cloudV2 = !!global.CloudMeta?.isCloudV2Enabled?.();
+    const centerId = getCenterId();
+    const branchId = getSyncBranchScope() || getBranchId();
+    const deviceId =
+      global.DeviceConfig?.getDeviceId?.()
+      || global.DeviceConfig?.load?.()?.deviceUuid
+      || global.LicenseIdentity?.getDeviceId?.()
+      || null;
+
+    if (!cloudV2) missing.push('cloud_v2_disabled');
+    if (!googleOk) missing.push('google_not_connected');
+    if (!centerId) missing.push('center_id');
+    if (!branchId) missing.push('branch_id');
+    if (!deviceId) missing.push('device_id');
+
+    try {
+      if (deviceId && global.DeviceRegistry?.canSync) {
+        const cs = global.DeviceRegistry.canSync(null, deviceId);
+        if (cs && cs.ok === false) missing.push(cs.error || 'device_sync_blocked');
+      }
+    } catch { /* empty */ }
+
+    const guard = checkSyncGuard({ force: !!options.force });
+    if (guard && guard.ok === false && !guard.skipped) {
+      missing.push(guard.reason || 'sync_guard_blocked');
+    }
+
+    const ready = missing.length === 0 && cloudV2 && googleOk && !!centerId;
+    return {
+      ready,
+      ok: ready,
+      missing,
+      state: ready
+        ? (isRunning() ? 'RUNNING' : 'READY_NOT_STARTED')
+        : 'WAITING_FOR_PREREQUISITES',
+      enabled: isEnabled(),
+      running: isRunning(),
+      cloudV2,
+      googleConnected: googleOk,
+      centerId: centerId || null,
+      branchId: branchId || null,
+      deviceId: deviceId || null,
+      messageAr: ready
+        ? (isRunning() ? 'محرك المزامنة يعمل' : 'محرك المزامنة جاهز — لم يُبدأ بعد')
+        : `محرك المزامنة غير جاهز: ${missing.join(', ')}`,
+    };
+  }
+
+  /**
+   * One-shot pull + flush (manual "مزامنة الآن" and BootFlow initial sync).
+   */
+  async function runOnce(options) {
+    options = options || {};
+    const readiness = getReadiness(options);
+    if (!readiness.ready && !options.force) {
+      return {
+        ok: false,
+        error: 'sync_engine_not_ready',
+        readiness,
+        message: readiness.messageAr,
+      };
+    }
+    if (!isEnabled() && !options.force) {
+      return { ok: false, skipped: true, reason: 'cloud_v2_or_drive_disabled', readiness };
+    }
+
+    const guard = checkSyncGuard(options);
+    if (guard && !guard.ok && !guard.skipped && !options.force) {
+      return { ok: false, blocked: true, ...guard, readiness };
+    }
+
+    let pull = { ok: true, skipped: true };
+    let push = { ok: true, skipped: true };
+    try {
+      pull = await poll();
+    } catch (err) {
+      pull = { ok: false, error: err.message || String(err) };
+    }
+    try {
+      push = await flushPending();
+    } catch (err) {
+      push = { ok: false, error: err.message || String(err) };
+    }
+
+    const ok = pull?.ok !== false || push?.ok !== false;
+    return {
+      ok,
+      pull,
+      push,
+      readiness: getReadiness({ force: true }),
+      at: new Date().toISOString(),
+    };
+  }
+
   function getStatus() {
     return {
       enabled: isEnabled(),
-      running: !!_pollTimer,
+      running: isRunning(),
+      readiness: getReadiness(),
       ...global.SyncState?.getStatus?.()
     };
   }
@@ -559,6 +667,9 @@
     flushPending,
     start,
     stop,
+    isRunning,
+    runOnce,
+    getReadiness,
     setPollIntervalMs,
     getSyncBranchScope,
     shouldSyncBranch,

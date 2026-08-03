@@ -6,6 +6,7 @@ const { contextBridge, ipcRenderer } = require('electron');
  */
 const ALLOWED_INVOKE = new Set([
   'app:getRuntimeInfo',
+  'app:relaunch',
   'app:consumeLicenseWipeFlag',
   'app:wipePersistentLicenseData',
   'app:writeUninstallCenterMeta',
@@ -141,6 +142,7 @@ function on(channel, cb) {
 const cuppingApi = {
   app: {
     getRuntimeInfo: () => invoke('app:getRuntimeInfo'),
+    relaunchApp: (options) => invoke('app:relaunch', options || {}),
     consumeLicenseWipeFlag: () => invoke('app:consumeLicenseWipeFlag'),
     wipePersistentLicenseData: () => invoke('app:wipePersistentLicenseData'),
     writeUninstallCenterMeta: (payload) => invoke('app:writeUninstallCenterMeta', payload),

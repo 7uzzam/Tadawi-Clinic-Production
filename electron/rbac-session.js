@@ -18,6 +18,7 @@ const ROLE_RANK = {
 /** Channels that anyone (even pre-login) may call — boot / Google bind / license pull. */
 const PUBLIC_CHANNELS = new Set([
   'app:getRuntimeInfo',
+  'app:relaunch',
   'app:consumeLicenseWipeFlag',
   'app:getDeviceFingerprintParts',
   'database:status',

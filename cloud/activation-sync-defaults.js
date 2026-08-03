@@ -90,9 +90,31 @@
       } catch { /* empty */ }
     }
 
+    // Actually start backup services — flags alone are not enough.
+    if (options.startBackup !== false) {
+      try {
+        global.BackupLayer?.start?.();
+      } catch { /* empty */ }
+      try {
+        if (typeof global.startAutoBackupTimer === 'function') {
+          global.startAutoBackupTimer();
+        }
+      } catch { /* empty */ }
+      try {
+        const api = global.cuppingElectron?.backup || global.tadawiElectron?.backup || global.BackupBridge;
+        if (api?.v2ScheduleConfigure) {
+          api.v2ScheduleConfigure({
+            enabled: true,
+            intervalMinutes: 60,
+            cloudEnabled: true,
+          }).catch?.(() => {});
+        }
+      } catch { /* empty */ }
+    }
+
     try {
       global.AuditLogger?.logSyncEvent?.('SETTINGS_CHANGED', {
-        summary: 'V2-5.9 activation sync/backup defaults applied',
+        summary: 'V2-5.10 activation sync/backup defaults applied + services started',
         meta: { activationBound: true }
       });
     } catch { /* empty */ }
