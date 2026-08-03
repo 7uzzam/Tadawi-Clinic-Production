@@ -79,3 +79,10 @@ SHA-256:
 Windows version:
 Scenario C result: FAIL until retest PASS
 ```
+
+
+## Installed Setup EXE (post-fix)
+
+- Release: https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30815143446
+- SHA-256: `5b3482d0cfc823d96c0dc9334f7f51a1c3e7e078711fc9095596766551dc0942`
+- Commit: `8581f0b`
