@@ -116,6 +116,7 @@ const baseline = [
   ['tests/baseline/test-v2-5-9-residual-closure.js', 'v2-5.9:residual-closure'],
   ['tests/baseline/test-v2-5-10-stage1-backup-v1.js', 'v2-5.10:stage1-backup-v1'],
   ['tests/baseline/test-v2-5-10-stage2-inventory.js', 'v2-5.10:stage2-inventory'],
+  ['tests/baseline/test-v2-5-10-cloud-discovery-restore.js', 'v2-5.10:cloud-discovery-restore'],
   ['tests/baseline/test-v2-5-10-category-b.js', 'v2-5.10:category-b'],
   ['scripts/v2-5-8-scenarios-all.cjs', 'v2-5.8:scenarios'],
   ['scripts/windows-uat/v2-5-8-activation-runtime.cjs', 'v2-5.8:windows-uat'],

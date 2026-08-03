@@ -55,7 +55,7 @@
     branch: 'اسم الفرع الأول + اسم هذا الجهاز.',
     branch_select: 'اختر فرعاً موجوداً واربط الجهاز به.',
     owner: 'مسار دعم فقط — ليس في رحلة العميل اليومية.',
-    restore: 'مصدر البيانات: سحابة / محلي / Backup V2 / فارغ.',
+    restore: 'فحص سريع للمصادر ثم تأكيد الاستعادة — سحابة / محلي / Backup V2 / فارغ بلا تنزيل أثناء الاكتشاف.',
     sync: 'المزامنة تُفعَّل بعد اكتمال الربط.',
     ready: 'أعد تشغيل التطبيق لتطبيق التفعيل.'
   };
@@ -328,6 +328,17 @@ body.bf-active #login-drive-bootstrap-panel,
 body.bf-active #lic-drive-bootstrap-panel{display:none!important}
 body.bf-active #licenseScreen:not(.hidden){z-index:100040!important}
 body.bf-active #cloudConnectModal.open{z-index:100039!important}
+body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
+.bf-source-card{border:1px solid var(--border,#e5e7eb);border-radius:12px;padding:12px 14px;background:var(--surface,#f8fafc);display:grid;gap:6px;text-align:start}
+.bf-source-card[data-status="ready"]{border-color:#86efac;background:#f0fdf4}
+.bf-source-card[data-status="not_found"],.bf-source-card[data-status="offline"],.bf-source-card[data-status="timeout"]{border-color:#fcd34d;background:#fffbeb}
+.bf-source-card[data-status="error"],.bf-source-card[data-status="token_expired"]{border-color:#fca5a5;background:#fef2f2}
+.bf-source-card h4{margin:0;font-size:14px}
+.bf-source-meta{font-size:12px;color:var(--text-muted,#64748b);line-height:1.6;dir:rtl}
+.bf-source-meta code{font-size:11px}
+.bf-restore-progress{margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff}
+.bf-restore-progress .bar{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden}
+.bf-restore-progress .bar>i{display:block;height:100%;width:0;background:#3D5A80;transition:width .2s}
 @media (max-height:720px){.bf-card-header{padding-top:10px}.bf-card h1{font-size:1.05rem}}
 @media (max-width:640px){.bf-nav-row{display:grid;grid-template-columns:1fr 1fr}.tdw-stepper.bf-stepper>li{min-width:3.25rem;max-width:5rem;font-size:10px}}
 `;
@@ -978,78 +989,227 @@ body.bf-active #cloudConnectModal.open{z-index:100039!important}
         break;
       }
       case 'restore': {
-        // Choice buttons live in scrollable body (vertical stack) — not crushed in footer nowrap.
-        content.innerHTML = '<p><strong>اختر مصدر البيانات</strong> — يُكتشف السحابي/المحلي تلقائياً. لا يُنشأ قاعدة فارغة بصمت.</p><div class="bf-choice-actions" id="bf-restore-choices"></div>';
+        // Fast Discovery (metadata) then Confirmed Restore — never silent infinite loader.
+        content.innerHTML = `
+          <p><strong>اختر مصدر البيانات</strong> — يتم فحص الخيارات المتاحة بسرعة قبل أي تنزيل.</p>
+          <div id="bf-discovery-status" class="bf-source-meta">⏳ جارٍ فحص مصادر البيانات (بدون تنزيل)…</div>
+          <div class="bf-choice-actions" id="bf-restore-choices" style="display:grid;gap:10px;margin-top:10px"></div>
+          <div id="bf-restore-progress-host"></div>`;
         const choiceHost = content.querySelector('#bf-restore-choices') || content;
+        const statusEl = content.querySelector('#bf-discovery-status');
+        const progressHost = content.querySelector('#bf-restore-progress-host');
+        const Discovery = global.CloudDataDiscovery;
+
         const markRestore = (choice, msg) => {
           const w2 = loadWizard();
           w2.restoreChoice = choice;
+          w2.cloudDiscovery = Discovery?.getLastDiscovery?.() || w2.cloudDiscovery || null;
           saveWizard(w2);
           setStatus(msg);
           renderNavButtons(loadWizard());
         };
-        addBtn(choiceHost, '☁️ استعادة أحدث بيانات سحابية', 'btn-primary', async () => {
+
+        const renderProgress = (snap) => {
+          if (!progressHost || !snap) return;
+          progressHost.innerHTML = `<div class="bf-restore-progress" dir="rtl">
+            <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px">
+              <span>${snap.stageIndex}/${snap.stageCount} — ${snap.stageLabel}</span>
+              <strong dir="ltr">${snap.percent}%</strong>
+            </div>
+            <div class="bar"><i style="width:${snap.percent}%"></i></div>
+            <div class="bf-source-meta" style="margin-top:6px">
+              المنقضي: ${Math.round((snap.elapsedMs || 0) / 1000)}ث ·
+              ${snap.downloadedBytes ? `منزّل: ${Discovery.formatBytes(snap.downloadedBytes)}` : ''}
+              ${snap.totalBytes ? ` / ${Discovery.formatBytes(snap.totalBytes)}` : ''}<br>
+              آخر نشاط: ${snap.lastActivity || '—'}
+              ${snap.diagnosticId ? `<br>Diagnostic ID: <code dir="ltr">${snap.diagnosticId}</code>` : ''}
+            </div>
+          </div>`;
+        };
+
+        const addSourceCard = (opts) => {
+          const card = document.createElement('div');
+          card.className = 'bf-source-card';
+          card.dataset.status = opts.status || 'unknown';
+          card.innerHTML = `<h4>${opts.title}</h4>
+            <div class="bf-source-meta">${opts.metaHtml || ''}</div>
+            <div class="bf-source-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>`;
+          const actions = card.querySelector('.bf-source-actions');
+          choiceHost.appendChild(card);
+          return { card, actions };
+        };
+
+        const runDiscovery = async () => {
           if (restoreInFlight) {
             setStatus('⚠️ عملية جارية — انتظر', true);
             return;
           }
-          restoreInFlight = true;
-          try { global.OwnerManagement?.setSystemBusy?.('restore'); } catch { /* empty */ }
-          setStatus('⏳ جارٍ الاستعادة من السحابة...');
-          try {
-            if (global.OpsUxBridge?.openRestoreWizard) {
-              await global.OpsUxBridge.openRestoreWizard();
-            } else if (global.CloudBootstrap?.hydrateFromDrive) {
-              await global.CloudBootstrap.hydrateFromDrive(null, { allowMissingLicense: false });
+          if (!Discovery?.discoverAllSources) {
+            if (statusEl) {
+              statusEl.textContent = '⚠️ وحدة الاكتشاف غير محمّلة — حدّث التطبيق أو أعد التحميل.';
             }
-            markRestore('cloud', '✅ تم اختيار/تنفيذ الاستعادة من السحابة');
+            // Still show non-cloud alternatives
+            addBtn(choiceHost, '💾 استخدام البيانات المحلية الموجودة', 'btn-secondary', async () => {
+              markRestore('local', '✅ سيتم استخدام قاعدة البيانات المحلية الحالية');
+            });
+            addBtn(choiceHost, '📁 اختيار ملف Backup / Database', 'btn-secondary', async () => {
+              try { await global.OpsUxBridge?.openRestoreWizard?.({ preferFile: true }); } catch { /* empty */ }
+              markRestore('file', '✅ تم اختيار مسار ملف النسخة/قاعدة البيانات');
+            });
+            addBtn(choiceHost, '📭 البدء بدون قاعدة بيانات سابقة', 'btn-ghost', () => {
+              markRestore('empty', '✅ بدء صريح بدون قاعدة سابقة');
+            });
+            return;
+          }
+
+          restoreInFlight = true;
+          try { global.OwnerManagement?.setSystemBusy?.('discovery'); } catch { /* empty */ }
+          setStatus('🔍 فحص سريع لمصادر البيانات (≤15ث) — بلا تنزيل…');
+          choiceHost.innerHTML = '';
+          if (statusEl) statusEl.textContent = '⏳ جارٍ الفحص المتوازي: سحابة / محلي / نسخ / فارغ…';
+
+          let discovery;
+          try {
+            discovery = await Discovery.discoverAllSources({ timeoutMs: 15000 });
           } catch (e) {
-            setStatusFromErr(e, 'restore_interrupted');
+            discovery = { ok: false, error: e.message || String(e), cloud: { status: 'error', message: e.message } };
           } finally {
             restoreInFlight = false;
-            try { global.OwnerManagement?.clearSystemBusy?.('restore'); } catch { /* empty */ }
-            renderNavButtons(loadWizard());
+            try { global.OwnerManagement?.clearSystemBusy?.('discovery'); } catch { /* empty */ }
           }
-        });
-        addBtn(choiceHost, '💾 استخدام البيانات المحلية الموجودة', 'btn-secondary', async () => {
-          markRestore('local', '✅ سيتم استخدام قاعدة البيانات المحلية الحالية');
-          try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true }); } catch { /* empty */ }
-          // NEVER immediate cloud push after restore — pull/reconcile remote revisions first.
-          try {
-            setStatus('⏳ مواءمة ما بعد الاستعادة (سحب الأحدث — بلا رفع فوري)...');
-            if (global.RestoreReconciliation?.afterRestoreDataSourceSelected) {
-              await global.RestoreReconciliation.afterRestoreDataSourceSelected('local');
-            } else if (global.SyncEngine?.runOnce) {
-              await global.SyncEngine.runOnce({ direction: 'pull', afterRestore: true, force: true });
-            }
-          } catch { /* empty */ }
-        });
-        addBtn(choiceHost, '📁 اختيار ملف Backup / Database', 'btn-secondary', async () => {
-          try {
-            if (global.OpsUxBridge?.openRestoreWizard) {
-              await global.OpsUxBridge.openRestoreWizard({ preferFile: true });
-            }
-          } catch { /* empty */ }
-          markRestore('file', '✅ تم اختيار مسار ملف النسخة/قاعدة البيانات');
-          try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true }); } catch { /* empty */ }
-          try {
-            setStatus('⏳ مواءمة ما بعد الاستعادة (سحب الأحدث — بلا رفع فوري)...');
-            if (global.RestoreReconciliation?.afterRestoreDataSourceSelected) {
-              await global.RestoreReconciliation.afterRestoreDataSourceSelected('file');
-            } else if (global.SyncEngine?.runOnce) {
-              await global.SyncEngine.runOnce({ direction: 'pull', afterRestore: true, force: true });
-            }
-          } catch { /* empty */ }
-        });
-        addBtn(choiceHost, '📭 البدء بدون قاعدة بيانات سابقة', 'btn-ghost', () => {
-          markRestore('empty', '✅ بدء صريح بدون قاعدة سابقة');
-        });
-        if (w.path === PATHS.EXISTING) {
-          addBtn(choiceHost, '✔️ تأكيد البيانات الحالية (جهاز موجود)', 'btn-ghost', () => {
-            markRestore('skip_existing', '✅ تم تأكيد البيانات الحالية');
+
+          const cloud = discovery?.cloud || {};
+          const dur = discovery?.durationMs != null ? `${discovery.durationMs}ms` : '—';
+          if (statusEl) {
+            statusEl.textContent = cloud.timedOut
+              ? `⏱️ انتهى وقت الفحص السحابي (${dur}). يمكنك إعادة المحاولة أو اختيار مصدر آخر.`
+              : `✅ اكتمل الفحص خلال ${dur}. لا تنزيل أثناء الاكتشاف.`;
+          }
+          setStatus(cloud.timedOut ? '⏱️ مهلة اكتشاف السحابة — أعد المحاولة' : '✅ نتائج الفحص جاهزة');
+
+          // --- Cloud card ---
+          const newest = cloud.newest;
+          const cloudStatus = cloud.status || 'unknown';
+          const cloudMeta = newest
+            ? `الحالة: <strong>جاهزة للتأكيد</strong><br>
+               النوع: ${newest.kind === 'backup_file' ? 'نسخة Backup' : 'نقطة مزامنة سحابية'}<br>
+               المركز: <code dir="ltr">${cloud.centerId || discovery?.identity?.centerId || '—'}</code><br>
+               الفرع: <code dir="ltr">${cloud.branchId || discovery?.identity?.branchId || '—'}</code><br>
+               آخر نسخة: ${Discovery.formatWhen(newest.modifiedAt)}<br>
+               الحجم: ${Discovery.formatBytes(newest.sizeBytes)}<br>
+               الملف: <code dir="ltr">${newest.name || newest.path || '—'}</code><br>
+               التحقق: ${newest.validation || 'metadata_ok'}`
+            : `الحالة: <strong>${cloudStatus}</strong><br>${cloud.message || 'لم يتم العثور على بيانات سحابية لهذا الفرع.'}`;
+
+          const cloudCard = addSourceCard({
+            title: '☁️ أحدث بيانات سحابية',
+            status: newest ? 'ready' : cloudStatus,
+            metaHtml: cloudMeta,
           });
-        }
-        // Footer keeps Back/Next only — actions host stays empty.
+
+          if (newest && (cloudStatus === 'ready' || cloudStatus === 'ipc_missing')) {
+            addBtn(cloudCard.actions, 'استعادة هذه البيانات', 'btn-primary', async () => {
+              if (restoreInFlight || Discovery.isRestoreLocked?.()) {
+                setStatus('⚠️ استعادة جارية — انتظر', true);
+                return;
+              }
+              restoreInFlight = true;
+              try { global.OwnerManagement?.setSystemBusy?.('restore'); } catch { /* empty */ }
+              setStatus('⏳ جارٍ الاستعادة المؤكدة من السحابة…');
+              try {
+                const result = await Discovery.confirmedCloudRestore(newest, {
+                  onProgress: (snap) => {
+                    renderProgress(snap);
+                    setStatus(`⏳ ${snap.stageLabel} — ${snap.percent}%`);
+                  },
+                });
+                if (!result?.ok) {
+                  setStatus(
+                    `❌ فشلت الاستعادة: ${result?.message || result?.error || 'unknown'}`
+                    + (result?.diagnosticId ? ` · ID ${result.diagnosticId}` : ''),
+                    true
+                  );
+                  if (progressHost) {
+                    progressHost.innerHTML += `<p class="bf-source-meta">لم تُستبدل القاعدة المحلية. الترخيص والجهاز والفرع محفوظون. يمكنك إعادة المحاولة أو تغيير المصدر.</p>`;
+                  }
+                  return;
+                }
+                markRestore('cloud', '✅ تمت الاستعادة السحابية المؤكدة — انتقل للمزامنة');
+                setStatus('✅ تمت الاستعادة — المزامنة التالية تسحب الأحدث فقط');
+              } catch (e) {
+                setStatusFromErr(e, 'restore_interrupted');
+              } finally {
+                restoreInFlight = false;
+                try { global.OwnerManagement?.clearSystemBusy?.('restore'); } catch { /* empty */ }
+                renderNavButtons(loadWizard());
+              }
+            });
+          } else {
+            addBtn(cloudCard.actions, 'إعادة فحص السحابة', 'btn-secondary', () => {
+              renderStepUI(loadWizard());
+            });
+          }
+
+          // --- Local DB card ---
+          const local = discovery?.localDb || {};
+          const localCard = addSourceCard({
+            title: '💾 البيانات المحلية',
+            status: local.status === 'valid' ? 'ready' : (local.status || 'unknown'),
+            metaHtml: `المسار: <code dir="ltr">${local.path || '—'}</code><br>الحالة: ${local.message || local.status || '—'}`,
+          });
+          addBtn(localCard.actions, 'استخدام البيانات المحلية', 'btn-secondary', async () => {
+            markRestore('local', '✅ سيتم استخدام قاعدة البيانات المحلية الحالية');
+            try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true }); } catch { /* empty */ }
+            try {
+              setStatus('⏳ مواءمة ما بعد الاستعادة (سحب الأحدث — بلا رفع فوري)...');
+              if (global.RestoreReconciliation?.afterRestoreDataSourceSelected) {
+                await global.RestoreReconciliation.afterRestoreDataSourceSelected('local');
+              }
+            } catch { /* empty */ }
+          });
+
+          // --- Local backups / file ---
+          const lb = discovery?.localBackup || {};
+          const fileCard = addSourceCard({
+            title: '📁 اختيار ملف Backup',
+            status: lb.available ? 'ready' : 'not_found',
+            metaHtml: `${lb.message || 'اختيار ملف...'}<br>النسخ المحلية: ${lb.count || 0}`,
+          });
+          addBtn(fileCard.actions, 'اختيار ملف…', 'btn-secondary', async () => {
+            try {
+              if (global.OpsUxBridge?.openRestoreWizard) {
+                await global.OpsUxBridge.openRestoreWizard({ preferFile: true });
+              }
+            } catch { /* empty */ }
+            markRestore('file', '✅ تم اختيار مسار ملف النسخة/قاعدة البيانات');
+            try { global.ActivationSyncDefaults?.applyDefaults?.({ startSync: true }); } catch { /* empty */ }
+            try {
+              setStatus('⏳ مواءمة ما بعد الاستعادة (سحب الأحدث — بلا رفع فوري)...');
+              if (global.RestoreReconciliation?.afterRestoreDataSourceSelected) {
+                await global.RestoreReconciliation.afterRestoreDataSourceSelected('file');
+              }
+            } catch { /* empty */ }
+          });
+
+          // --- Empty start ---
+          const emptyCard = addSourceCard({
+            title: '📭 البدء بدون بيانات سابقة',
+            status: 'ready',
+            metaHtml: 'إنشاء قاعدة جديدة بقرار صريح منك — لن يحدث تلقائياً عند فشل السحابة.',
+          });
+          addBtn(emptyCard.actions, 'بدء قاعدة جديدة', 'btn-ghost', () => {
+            markRestore('empty', '✅ بدء صريح بدون قاعدة سابقة');
+          });
+
+          if (w.path === PATHS.EXISTING) {
+            addBtn(choiceHost, '✔️ تأكيد البيانات الحالية (جهاز موجود)', 'btn-ghost', () => {
+              markRestore('skip_existing', '✅ تم تأكيد البيانات الحالية');
+            });
+          }
+        };
+
+        // Kick discovery asynchronously so the step paints first
+        setTimeout(() => { runDiscovery().catch(() => {}); }, 0);
         break;
       }
       case 'sync': {

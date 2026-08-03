@@ -32,6 +32,7 @@ const PUBLIC_CHANNELS = new Set([
   'backup:registerCloudAccount',
   'backup:disconnectCloud',
   'backup:listCloudBackups',
+  'backup:discoverCloudRestorePoints',
   'backup:downloadCloudBackup',
   'backup:listDbBackups',
   'backup:verifyCloudBackup',

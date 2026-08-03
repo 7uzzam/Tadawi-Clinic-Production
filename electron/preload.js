@@ -33,6 +33,7 @@ const ALLOWED_INVOKE = new Set([
   'backup:registerCloudAccount',
   'backup:disconnectCloud',
   'backup:listCloudBackups',
+  'backup:discoverCloudRestorePoints',
   'backup:downloadCloudBackup',
   'backup:deleteCloudBackup',
   'backup:verifyCloudBackup',
@@ -177,6 +178,7 @@ const cuppingApi = {
     registerCloudAccount: (email, provider) => invoke('backup:registerCloudAccount', email, provider),
     disconnectCloud: (provider) => invoke('backup:disconnectCloud', provider),
     listCloudBackups: (provider, prefix) => invoke('backup:listCloudBackups', provider, prefix),
+    discoverCloudRestorePoints: (options) => invoke('backup:discoverCloudRestorePoints', options),
     downloadCloudBackup: (remotePath, provider) => invoke('backup:downloadCloudBackup', remotePath, provider),
     deleteCloudBackup: (remotePath, provider) => invoke('backup:deleteCloudBackup', remotePath, provider),
     verifyCloudBackup: (remotePath, expectedHash, provider) =>
