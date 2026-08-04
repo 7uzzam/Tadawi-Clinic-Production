@@ -37,7 +37,10 @@
 
   function isConsumed(doc) {
     const a = getActivationBlock(doc);
-    return !!(a && a.consumed);
+    if (a && a.consumed) return true;
+    // Backward-compat: pulled legacy cloud licenses may have centerId without activation block.
+    // Treat them as activated-for-use to avoid false "not activated" after pull.
+    return !!(doc?.centerId && (doc?.licenseId || doc?.packageId || doc?.subscriptionId));
   }
 
   /** @deprecated Informational/audit only — not used for permissions or device gating. */
@@ -284,7 +287,12 @@
   function formatPrimaryDeviceLabel(doc) {
     doc = doc || global.LicenseCloud?.loadLocal?.() || {};
     const a = getActivationBlock(doc);
-    if (!a?.consumed) return '— (لم يُفعَّل بعد)';
+    if (!a?.consumed) {
+      if (doc?.centerId && (doc?.licenseId || doc?.packageId || doc?.subscriptionId)) {
+        return '✓ مُفعَّل (تم السحب من Google)';
+      }
+      return '— (لم يُفعَّل بعد)';
+    }
     if (a.consumedAt) return '✓ مُفعَّل — الأجهزة تسحب من Google';
     return '✓ مُفعَّل';
   }

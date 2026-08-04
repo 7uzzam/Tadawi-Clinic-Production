@@ -541,8 +541,22 @@
     branch_id: 'ربط الفرع',
     device_id: 'تسجيل الجهاز',
     device_sync_blocked: 'الجهاز محظور من المزامنة',
-    sync_guard_blocked: 'حارس المزامنة موقوف',
+    sync_guard_blocked: 'حارس المزامنة موقوف — اضغط استئناف',
+    unsafe: 'حارس المزامنة أوقف المزامنة بعد تحليل البيانات — اضغط استئناف المزامنة',
+    UNSAFE: 'حارس المزامنة أوقف المزامنة بعد تحليل البيانات — اضغط استئناف المزامنة',
+    analysis_required: 'يلزم تحليل/تأكيد مصدر البيانات قبل المزامنة',
+    sync_paused: 'المزامنة موقوفة مؤقتاً',
+    conflict: 'يوجد تعارض بيانات يحتاج قراراً',
+    no_analysis: 'لا يوجد تحليل بيانات معتمد بعد',
   });
+
+  function normalizeMissingCode(code) {
+    const raw = String(code || '').trim();
+    if (!raw) return 'sync_guard_blocked';
+    const lower = raw.toLowerCase();
+    if (lower === 'unsafe') return 'unsafe';
+    return raw;
+  }
 
   /**
    * Detailed readiness — never a vague "not ready" without reasons.
@@ -576,20 +590,27 @@
     } catch { /* empty */ }
 
     const guard = checkSyncGuard({ force: !!options.force });
+    let guardPaused = false;
     if (guard && guard.ok === false && !guard.skipped) {
-      missing.push(guard.reason || 'sync_guard_blocked');
+      guardPaused = true;
+      missing.push(normalizeMissingCode(guard.reason || 'sync_guard_blocked'));
     }
 
-    const missingLabelsAr = missing.map((code) => READINESS_LABELS_AR[code] || code);
-    const ready = missing.length === 0 && cloudV2 && googleOk && !!centerId;
+    const missingNorm = missing.map(normalizeMissingCode);
+    const missingLabelsAr = missingNorm.map((code) => READINESS_LABELS_AR[code] || code);
+    const hardMissing = missingNorm.filter((c) => !['unsafe', 'UNSAFE', 'sync_paused', 'analysis_required', 'sync_guard_blocked', 'no_analysis'].includes(c));
+    // Guard pause alone is recoverable — expose resume hint but allow force paths.
+    const ready = hardMissing.length === 0 && !guardPaused && cloudV2 && googleOk && !!centerId;
+    const recoverablePause = hardMissing.length === 0 && guardPaused && cloudV2 && googleOk && !!centerId;
     return {
       ready,
       ok: ready,
-      missing,
+      recoverablePause,
+      missing: missingNorm,
       missingLabelsAr,
       state: ready
         ? (isRunning() ? 'RUNNING' : 'READY_NOT_STARTED')
-        : 'WAITING_FOR_PREREQUISITES',
+        : (recoverablePause ? 'SYNC_PAUSED_RECOVERABLE' : 'WAITING_FOR_PREREQUISITES'),
       enabled: isEnabled(),
       running: isRunning(),
       cloudV2,
@@ -599,8 +620,17 @@
       deviceId: deviceId || null,
       messageAr: ready
         ? (isRunning() ? 'محرك المزامنة يعمل' : 'محرك المزامنة جاهز — لم يُبدأ بعد')
-        : `محرك المزامنة غير جاهز — المتطلبات الناقصة: ${missingLabelsAr.join('؛ ')} (${missing.join(', ')})`,
+        : (recoverablePause
+          ? `المزامنة موقوفة مؤقتاً — ${missingLabelsAr.join('؛ ')}. اضغط «استئناف المزامنة».`
+          : `محرك المزامنة غير جاهز — المتطلبات الناقصة: ${missingLabelsAr.join('؛ ')}`),
     };
+  }
+
+  function resumeFromGuard(reason) {
+    try {
+      global.SyncGuard?.resume?.({ reason: reason || 'manual_resume' }, 'sync');
+    } catch { /* empty */ }
+    return getReadiness({ force: false });
   }
 
   /**
@@ -687,6 +717,7 @@
     shouldSyncBranch,
     checkSyncGuard,
     getStatus,
+    resumeFromGuard,
     on,
     pullConfigFile,
     pullOperationalTable,

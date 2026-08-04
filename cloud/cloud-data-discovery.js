@@ -32,10 +32,14 @@
   let lastDiscovery = null;
 
   function bridge() {
-    return global.BackupBridge
-      || global.cuppingElectron?.backup
+    const electronBackup = global.cuppingElectron?.backup
       || global.tadawiElectron?.backup
+      || global.tadawi?.backup
       || null;
+    // Prefer Electron IPC when BackupBridge lacks discovery (older wrappers).
+    if (electronBackup?.discoverCloudRestorePoints) return electronBackup;
+    if (global.BackupBridge?.discoverCloudRestorePoints) return global.BackupBridge;
+    return global.BackupBridge || electronBackup || null;
   }
 
   function formatBytes(n) {
