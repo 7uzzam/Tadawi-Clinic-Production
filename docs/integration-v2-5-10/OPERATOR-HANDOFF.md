@@ -9,6 +9,7 @@
 - Category B offline architecture / UX / maintainability closed  
 - Backup V1 customer path disabled  
 - CenterSetup demoted; BootFlow + Owner Hub own customer paths  
+- **PRODUCTION LOCK active** — no new features; bugs + UX cleanup + Installed EXE UAT only  
 - Conflict UI / ops strip bugs fixed  
 - Remaining common modals → `modal-shell`  
 - CI publishes Setup EXE to **GitHub Releases** (not large Actions Artifacts)  
@@ -46,6 +47,7 @@ Details: `MOBILE-QUOTA-AND-EXE-DELIVERY.md` · Quick card: `OPERATOR-AE-QUICK-CA
 ## Explicitly not your engineering backlog right now
 
 Do **not** ask agents to:
+- Add features or architecture after **PRODUCTION LOCK** (`PRODUCTION-LOCK.md`)  
 - Declare Production Candidate without A–E  
 - Delete the archive repo  
 - Inflate quality scores to 90+  

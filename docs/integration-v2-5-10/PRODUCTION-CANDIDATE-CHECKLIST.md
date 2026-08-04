@@ -1,6 +1,7 @@
 # Production Candidate Checklist — V2-5.10
 
-**Production Candidate: NO**
+**Production Candidate: NO**  
+**Mode:** **PRODUCTION LOCK** — see `PRODUCTION-LOCK.md` (stability only, no new features).
 
 See vision: `FINAL-VISION-AND-STATUS-REPORT.md`.
 

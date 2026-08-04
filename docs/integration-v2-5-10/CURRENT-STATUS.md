@@ -9,6 +9,7 @@
 
 | Question | Answer |
 |----------|--------|
+| Development mode | **PRODUCTION LOCK** (`PRODUCTION-LOCK.md`) — bugs/UX/UAT only |
 | Ready for production | **NO** |
 | Production Candidate | **NO** |
 | Release Gate | **FAIL** until A–E evidence on Installed Setup EXE from **this** repo |
@@ -34,8 +35,10 @@ Owner migrated **before** Production Candidate. Live UAT A–E runs here. Migrat
 
 ## Canonical reports
 
-1. **`OPERATOR-HANDOFF.md`** — start here (EXE link + remaining steps)  
-2. `OPERATOR-LIVE-UAT.md` — Category A protocol (A→E)  
+1. **`PRODUCTION-LOCK.md`** — stability-only policy (active)  
+2. **`OPERATOR-E2E-WORKFLOW-LOCK.md`** — full installed-EXE workflow checklist  
+3. **`OPERATOR-HANDOFF.md`** — start here (EXE link + remaining steps)  
+4. `OPERATOR-LIVE-UAT.md` — Category A protocol (A→E)  
 3. `END-OF-PROGRAM-VISION-REPORT.md` / `END-OF-PROGRAM-VISION-REPORT-AR.md`  
 4. `CATEGORY-B-COMPLETION-REPORT.md`  
 5. `PRODUCTION-CANDIDATE-CHECKLIST.md`  
