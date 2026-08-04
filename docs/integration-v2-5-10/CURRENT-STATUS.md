@@ -16,6 +16,7 @@
 | Category A | **BLOCKED** on live operator proof (Devices A/B) |
 | Scenario C (cloud restore) | **FAIL** until retest on discovery-fix EXE |
 | Setup / Sync / Owner password | **Code + CI install smoke landed** — live Device A/B Google still **UNVERIFIED** |
+| Sync UX / Activation label / logout Google / ipc_missing / branch refresh | **Shipped** on EXE `uat-v2-5-10-30897392063` — see `SYNC-UX-BRANCH-READY-FIX.md` |
 | SetupState SoT / UI inventory / restart loop / readiness labels | **Implemented** — see `SETUP-STATE-UI-INVENTORY.md` + `evidence/setupstate-runtime-evidence.json` (after CI) |
 | Category B | **COMPLETE** (offline engineering) |
 | Offline engineering backlog | SetupStateDom SoT + password revision merge + inventory + runtime evidence harness shipped — live journeys still operator |
@@ -43,8 +44,8 @@ Owner migrated **before** Production Candidate. Live UAT A–E runs here. Migrat
 ## Setup EXE delivery
 
 - Channel: **GitHub Releases** prerelease tags `uat-v2-5-10-<run_id>` on **this** repo  
-- Current UAT: https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30821313092  
-- SHA-256: `8a0ffd62bb54d903e3816404eaa63beb9f3a872278d43667898c638dcd81dd62`  
+- Current UAT: https://github.com/7uzzam/Tadawi-Clinic-Production/releases/tag/uat-v2-5-10-30897392063  
+- SHA-256: `b8f3de3ab56179f8aaa4ff8a963f0e46730d27e52daab1714fe5e9a4f66f7a3b`  
 - Prefer newest UAT prerelease if a newer main publish appears  
 - Do **not** rely on large Actions `setup-exe` artifacts  
 - Mobile: `MOBILE-QUOTA-AND-EXE-DELIVERY.md`  
