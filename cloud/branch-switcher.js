@@ -63,6 +63,16 @@
         if (typeof global.refreshClientsView === 'function') global.refreshClientsView(false);
         if (typeof global.refreshInvoicesPage === 'function') global.refreshInvoicesPage(false);
         if (typeof global.refreshDashboardAlerts === 'function') global.refreshDashboardAlerts();
+        if (typeof global.refreshDoctorsTable === 'function') global.refreshDoctorsTable();
+        if (typeof global.refreshUsersTable === 'function') global.refreshUsersTable();
+        if (typeof global.renderReportsPage === 'function') global.renderReportsPage();
+        if (typeof global.renderOwnerHubPage === 'function') global.renderOwnerHubPage();
+        if (typeof global.showPage === 'function') {
+          try {
+            const active = document.querySelector('.page.active')?.id;
+            if (active) global.showPage(active.replace('Page',''));
+          } catch { /* empty */ }
+        }
       });
     }
   }

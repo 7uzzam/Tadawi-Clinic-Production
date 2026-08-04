@@ -6404,6 +6404,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <button type="button" class="btn btn-secondary btn-sm" id="settings-bootflow-cta" onclick="typeof openBootWizardFromLogin==='function'&&openBootWizardFromLogin()">🚀 معالج الإعداد (BootFlow)</button>
           <button type="button" class="btn btn-secondary btn-sm" data-ss-surface="google_connect" onclick="startCloudDbOAuth()">🔗 ربط Google</button>
           <button type="button" class="btn btn-accent btn-sm" id="btn-cloud-v2-sync-now" data-ss-surface="sync_manual" onclick="runCloudV2SyncNow()">🔄 مزامنة الآن</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-cloud-v2-resume" onclick="resumeCloudV2Sync()" style="display:none">▶️ استئناف المزامنة</button>
           <button type="button" class="btn btn-ghost btn-sm" id="settings-centersetup-cta" onclick="CenterSetupUI.open('manage')" title="دعم متقدم فقط">⚙️ إعداد المركز (دعم)</button>
         </div>
         <div id="bk-cv2-migration-wrap" style="margin-top:12px;padding:10px;background:var(--surface);border-radius:8px;border:1px dashed var(--border)">
@@ -6436,8 +6437,9 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
         <p class="backup-card-desc">مسار الإنتاج لاستعادة <code dir="ltr">tadawi.db</code> والمرفقات والإعدادات. يرفض نسخ مركز/فرع غير مصرّح، ويستبدل البيانات بشكل ذرّي مع إعادة تشغيل البرنامج.</p>
         <div class="form-grid form-grid-2" style="gap:10px;margin-top:10px">
           <div class="form-group" style="margin:0">
-            <label class="form-label">كلمة مرور Backup V2</label>
-            <input class="form-control" type="password" id="bk-v2-pass" placeholder="8 أحرف على الأقل" autocomplete="new-password">
+            <label class="form-label">مفتاح Backup V2 (تلقائي)</label>
+            <input class="form-control" type="password" id="bk-v2-pass" placeholder="تلقائي — لا يلزم إدخال يدوي" autocomplete="new-password">
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px">يُولَّد تلقائياً لكل مركز. يمكنك إدخال مفتاح مخصص فقط عند الحاجة.</div>
           </div>
           <div class="form-group" style="margin:0">
             <label class="form-label">جدولة V2 (دقائق)</label>
@@ -9910,6 +9912,8 @@ function doLogout() {
   if (typeof SidebarController !== 'undefined' && SidebarController._inited) SidebarController._inited = false;
   clearUserSession();
   try { sessionStorage.clear(); } catch {}
+  // Never disconnect Google on user logout — Google is center-level, not session-level.
+  // Disconnecting here caused BootFlow / readiness to return after every logout.
   const finishLogout = () => {
     const pwEl = document.getElementById('login-password');
     if (pwEl) pwEl.value = '';
@@ -9919,10 +9923,6 @@ function doLogout() {
     if (userEl) userEl.value = '';
     window.location.replace(window.location.pathname + window.location.search);
   };
-  if (typeof forceGoogleDisconnect === 'function') {
-    forceGoogleDisconnect({ silent: true }).finally(finishLogout);
-    return;
-  }
   finishLogout();
 }
 
@@ -10519,7 +10519,7 @@ const defaultBackupConfig = {
   localPathCustom: '',
   cloudProvider: 'google',
   cloudEnabled: false,
-  encrypt: true,
+  encrypt: false,
   autoIntervalMin: 60,
   triggers: { onClose: true, beforeUpdate: true, beforeRestore: true, afterOps: 50 },
   deviceName: 'PC-MAIN',
@@ -15961,6 +15961,19 @@ const BackupBridge = {
     }
     return { ok: true, items: [] };
   },
+  async discoverCloudRestorePoints(options) {
+    if (this.isElectron() && getCuppingElectron().backup?.discoverCloudRestorePoints) {
+      return getCuppingElectron().backup.discoverCloudRestorePoints(options || {});
+    }
+    return {
+      ok: false,
+      status: 'ipc_missing',
+      message: 'قناة اكتشاف السحابة غير متاحة في هذه النسخة — حدّث التطبيق.',
+      restorePoints: [],
+      newest: null,
+      downloadedFullBackup: false,
+    };
+  },
   async downloadCloudBackup(remotePath, provider) {
     if (this.isElectron() && getCuppingElectron().backup?.downloadCloudBackup) {
       return getCuppingElectron().backup.downloadCloudBackup(remotePath, provider);
@@ -16778,7 +16791,9 @@ function getBackupV2Password() {
   const field = document.getElementById('bk-v2-pass')?.value || '';
   if (field && field.length >= 8) return field;
   const legacy = document.getElementById('bk-encrypt-pass')?.value || '';
-  return legacy;
+  if (legacy && legacy.length >= 8) return legacy;
+  const center = (typeof CenterId !== 'undefined' && CenterId.getStoredCenterId?.()) || 'CENTER';
+  return `tdw-v2-${String(center).replace(/[^a-zA-Z0-9]/g,'').slice(0,24)}-auto`;
 }
 
 async function refreshBackupV2Status() {
@@ -17932,7 +17947,7 @@ async function runCloudV2SyncNow() {
       notify('⚠️ محرك المزامنة غير محمّل', 'warning');
       return { ok: false, error: 'sync_engine_missing' };
     }
-    const readiness = typeof SyncEngine.getReadiness === 'function'
+    let readiness = typeof SyncEngine.getReadiness === 'function'
       ? SyncEngine.getReadiness({ force: false })
       : { ready: typeof SyncEngine.runOnce === 'function', missing: ['readiness_api'], messageAr: 'محرك المزامنة غير جاهز' };
     if (!readiness.ready && typeof SyncEngine.runOnce !== 'function') {
@@ -17940,11 +17955,16 @@ async function runCloudV2SyncNow() {
       return { ok: false, error: 'sync_engine_not_ready', readiness };
     }
     if (!readiness.ready) {
-      const labels = (readiness.missingLabelsAr && readiness.missingLabelsAr.length)
-        ? readiness.missingLabelsAr.join('؛ ')
-        : (readiness.missing || []).join(', ');
-      notify('⚠️ ' + (readiness.messageAr || ('غير جاهز — المتطلبات الناقصة: ' + labels)), 'warning');
-      return { ok: false, error: 'sync_engine_not_ready', readiness };
+      if (readiness.recoverablePause && typeof SyncEngine.resumeFromGuard === 'function') {
+        readiness = SyncEngine.resumeFromGuard('manual_sync_now');
+      }
+      if (!readiness.ready) {
+        const labels = (readiness.missingLabelsAr && readiness.missingLabelsAr.length)
+          ? readiness.missingLabelsAr.join('؛ ')
+          : (readiness.missing || []).join(', ');
+        notify('⚠️ ' + (readiness.messageAr || ('غير جاهز — المتطلبات الناقصة: ' + labels)), 'warning');
+        return { ok: false, error: 'sync_engine_not_ready', readiness };
+      }
     }
     if (!SyncEngine.isRunning?.()) {
       SyncEngine.start?.({ pollIntervalMs: SyncState?.load?.()?.pollIntervalMs || 15000 });
@@ -17961,6 +17981,21 @@ async function runCloudV2SyncNow() {
     notify('❌ خطأ مزامنة: ' + (e.message || e), 'danger');
     return { ok: false, error: String(e.message || e) };
   }
+}
+
+
+async function resumeCloudV2Sync() {
+  if (typeof SyncEngine === 'undefined' || typeof SyncEngine.resumeFromGuard !== 'function') {
+    notify('⚠️ خدمة الاستئناف غير متاحة', 'warning');
+    return { ok: false, error: 'resume_api_missing' };
+  }
+  const rs = SyncEngine.resumeFromGuard('manual_resume_button');
+  if (!rs.ready) {
+    notify('⚠️ ما زالت المتطلبات ناقصة: ' + ((rs.missingLabelsAr || rs.missing || []).join('؛ ')), 'warning');
+    return { ok: false, readiness: rs };
+  }
+  notify('✅ تم استئناف المزامنة', 'success');
+  return runCloudV2SyncNow();
 }
 
 async function openCloudDbRestoreList() {
@@ -18180,7 +18215,7 @@ function initBackupUI() {
   setChk('bk-trig-update', cfg.triggers?.beforeUpdate !== false);
   setChk('bk-trig-restore', cfg.triggers?.beforeRestore !== false);
   setChk('bk-trig-ops', cfg.triggers?.afterOps !== false && cfg.triggers?.afterOps !== 0);
-  setChk('bk-encrypt', cfg.encrypt !== false);
+  setChk('bk-encrypt', cfg.encrypt === true);
   onBackupEncryptToggle();
   selectCloudProvider(cfg.cloudProvider || 'google');
   syncCloudStatusFromElectron().then(() => {
@@ -18234,7 +18269,9 @@ function renderCloudV2BackupStatus() {
       const labels = (readiness.missingLabelsAr && readiness.missingLabelsAr.length)
         ? readiness.missingLabelsAr.join('؛ ')
         : readiness.missing.join(', ');
-      hintEl.innerHTML = '⚠️ <strong>محرك المزامنة غير جاهز</strong><br>'
+      const resumeBtn = document.getElementById('btn-cloud-v2-resume');
+      if (resumeBtn) resumeBtn.style.display = readiness.recoverablePause ? '' : 'none';
+      hintEl.innerHTML = (readiness.recoverablePause ? '⏸️ <strong>المزامنة موقوفة مؤقتاً</strong><br>' : '⚠️ <strong>محرك المزامنة غير جاهز</strong><br>')
         + `الحالة: <code dir="ltr">${readiness.state}</code><br>`
         + `المتطلبات الناقصة: ${labels}<br>`
         + `<code dir="ltr">${readiness.missing.join(', ')}</code>`;
@@ -18242,6 +18279,8 @@ function renderCloudV2BackupStatus() {
       if (!google) parts.push('اربط Google أولاً');
       if (centerId === '—') parts.push('فعّل الترخيص بمفتاح المنتج لإنشاء Center ID');
       if (centerId !== '—' && !branch) parts.push('أكمل الفرع والجهاز من Owner Hub أو معالج الإعداد (BootFlow)');
+      const resumeBtn = document.getElementById('btn-cloud-v2-resume');
+      if (resumeBtn) resumeBtn.style.display = 'none';
       if (parts.length) {
         hintEl.style.display = 'block';
         hintEl.innerHTML = '⚠️ <strong>لتفعيل المزامنة:</strong> ' + parts.join(' → ');
