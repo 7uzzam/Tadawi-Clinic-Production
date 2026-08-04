@@ -64,14 +64,14 @@
     "errors": []
   },
   "backup": {
-    "path": "/tmp/v257-mig-harness-QtwJ6w/backup-before-002.db",
+    "path": "/tmp/v257-mig-harness-ox2SfA/backup-before-002.db",
     "size": 245760,
-    "sha256": "3cedea9f01a9b89b4297bde66007f97ba16d5cb8e73f536fe6bec245fcf5953a",
-    "at": "2026-07-31T00:05:51.216Z"
+    "sha256": "487fe478fc6250751d9d61c53ddbeb8cf61554bdd3311d350e613a093fc5f10c",
+    "at": "2026-08-04T22:36:03.879Z"
   },
   "migrations": [
     "001_initial",
     "002_sync_platform"
   ],
-  "at": "2026-07-31T00:05:51.252Z"
+  "at": "2026-08-04T22:36:03.910Z"
 }

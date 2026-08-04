@@ -3,7 +3,7 @@
   "title": "App-only uninstall preserves license",
   "ok": true,
   "result": "PASS",
-  "at": "2026-07-31T00:05:51.346Z",
+  "at": "2026-08-04T22:36:04.004Z",
   "evidence": {
     "uninstallPrepStdout": "uninstall-prep smoke test PASS (app-only keeps license; full wipe explicit)\n",
     "appOnlyKeepsLicense": true,

@@ -6417,6 +6417,13 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           </div>
           <div id="bk-cv2-migration-status" style="font-size:11px;color:var(--text-muted);line-height:1.65">—</div>
         </div>
+        <div id="bk-cv2-legacy-branch-wrap" style="margin-top:12px;padding:10px;background:var(--surface);border-radius:8px;border:1px dashed var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+            <strong style="font-size:12px">🌿 ترحيل branchId للسجلات التشغيلية</strong>
+            <button type="button" class="btn btn-accent btn-sm" onclick="LegacyBranchMigrationUI.openWizard({force:true})">🧭 معالج الترحيل</button>
+          </div>
+          <div id="bk-cv2-legacy-branch-status" style="font-size:11px;color:var(--text-muted);line-height:1.65">—</div>
+        </div>
       </div>
 
       <div class="card" style="border:1.5px solid var(--success, #2e7d32)">
@@ -7827,6 +7834,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
       <div class="modal-title" id="doctorModalTitle">➕ إضافة موظف جديد</div>
       <button class="modal-close" onclick="closeDoctorModal()">✕</button>
     </div>
+    <div class="modal-body">
     <div class="form-grid form-grid-2" style="gap:14px">
       <div class="form-group">
         <label class="form-label">الاسم الكامل <span class="req">*</span></label>
@@ -7953,8 +7961,8 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
         </div>
       </div>
     </div>
-    <div class="divider"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
+    </div>
+    <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeDoctorModal()">إلغاء</button>
       <button class="btn btn-primary" onclick="saveDoctor()">💾 حفظ</button>
     </div>
@@ -11730,7 +11738,13 @@ function ensureClientRegistry({ name, phone, patientId, nationality, isVip, regi
   if (!deferPersist) {
     if (typeof SqliteBridge !== 'undefined' && SqliteBridge.setAuthoritative) {
       void SqliteBridge.setAuthoritative('clientsRegistry', clientsRegistry).then((res) => {
-        if (!res?.ok) notify?.('⚠️ فشل حفظ العميل في SQLite — ' + (res?.error || ''), 'danger');
+        if (!res?.ok) {
+          if (res?.error === 'legacy_branch_migration_required' && LegacyBranchMigrationUI?.onOperationalBlocked) {
+            LegacyBranchMigrationUI.onOperationalBlocked(res.error, 'clientsRegistry');
+          } else {
+            notify?.('⚠️ فشل حفظ العميل في SQLite — ' + (res?.error || ''), 'danger');
+          }
+        }
       });
     } else {
       DB.set('clientsRegistry', clientsRegistry);
@@ -16045,6 +16059,10 @@ window.BackupBridge = BackupBridge;
 <script src="cloud/branch-contexts.js"></script>
 <script src="cloud/restore-reconciliation.js"></script>
 <script src="cloud/legacy-branch-migration.js"></script>
+<script src="cloud/legacy-branch-migration-ui.js"></script>
+<script src="cloud/drive-path-resolver.js"></script>
+<script src="cloud/document-preview-bridge.js"></script>
+<script src="license/ui/package-registry-viewer.js"></script>
 <script src="cloud/attachment-lifecycle.js"></script>
 <script src="cloud/rbac-inventory.js"></script>
 <script src="cloud/rbac-guard.js"></script>
@@ -18307,6 +18325,31 @@ function renderCloudV2BackupStatus() {
   set('bk-cv2-device', `${branch} / ${devName}`);
   loadCloudV2PollIntervalUI();
   renderDriveMigrationStatusUI();
+  renderLegacyBranchMigrationStatusUI();
+}
+
+function renderLegacyBranchMigrationStatusUI() {
+  const el = document.getElementById('bk-cv2-legacy-branch-status');
+  const wrap = document.getElementById('bk-cv2-legacy-branch-wrap');
+  if (!el) return;
+  const mig = typeof LegacyBranchMigration !== 'undefined' ? LegacyBranchMigration : null;
+  if (!mig) {
+    el.textContent = 'وحدة الترحيل غير محمّلة.';
+    return;
+  }
+  if (mig.isMigrationComplete?.()) {
+    el.textContent = '✅ اكتمل ترحيل branchId — الحفظ والمزامنة مسموح.';
+    if (wrap) wrap.style.borderColor = 'var(--success)';
+    return;
+  }
+  const report = mig.detectLegacyRecords?.() || { legacyTotal: 0 };
+  if (report.legacyTotal > 0) {
+    el.innerHTML = `⚠️ <strong>${report.legacyTotal}</strong> سجل بلا فرع — الحفظ في SQLite والمزامنة موقوفان حتى إكمال المعالج.`;
+    if (wrap) wrap.style.borderColor = 'var(--warning)';
+  } else {
+    el.textContent = 'لا سجلات قديمة — لا حاجة للترحيل.';
+    if (wrap) wrap.style.borderColor = 'var(--border)';
+  }
 }
 
 function renderDriveMigrationStatusUI() {
@@ -19541,7 +19584,12 @@ window.refreshSettingsThermalPreview = refreshSettingsThermalPreview;
 
 async function printThermalDoc(html, successMsg, options) {
   if (!html) { notify('⚠️ لا يوجد محتوى للطباعة', 'danger'); return { ok: false }; }
-  const res = await HardwareBridge.printThermal(html, options || {});
+  options = options || {};
+  if (typeof DocumentPreviewBridge !== 'undefined' && DocumentPreviewBridge.shouldPreviewFirst?.(options)) {
+    const prev = DocumentPreviewBridge.openPreview(html, options.title || 'معاينة فاتورة حرارية', options);
+    if (prev?.ok) return { ok: true, preview: true };
+  }
+  const res = await HardwareBridge.printThermal(html, options);
   if (res?.ok === false && res?.error === 'popup_blocked') return res;
   if (successMsg) notify(successMsg);
   return res;

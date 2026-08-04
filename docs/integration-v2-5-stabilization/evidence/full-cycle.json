@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T05:12:51.701Z",
+  "at": "2026-08-04T22:36:04.153Z",
   "ok": true,
   "cycle": [
     {
@@ -94,6 +94,6 @@
     }
   ],
   "windowsReleaseRequired": true,
-  "windowsArtifactsPresent": true,
+  "windowsArtifactsPresent": false,
   "readyForMain": false
 }

@@ -3,7 +3,7 @@
   "title": "Interrupted update rollback",
   "ok": true,
   "result": "PASS",
-  "at": "2026-07-31T00:05:51.347Z",
+  "at": "2026-08-04T22:36:04.004Z",
   "evidence": {
     "policy": "NSIS upgrade preserves userData on ${isUpdated}; app binaries replaced under INSTDIR only; DB untouched on interrupt",
     "updatePreservesUserData": true,

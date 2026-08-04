@@ -11,6 +11,6 @@
       "uninstallerIcon": true,
       "installerHeaderIcon": true
     },
-    "iconInspectOk": true
+    "iconInspectOk": false
   }
 }

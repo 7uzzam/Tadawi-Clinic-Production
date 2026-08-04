@@ -2,7 +2,7 @@
   "id": "U01-restore-wizard",
   "title": "Restore wizard happy path + cancel",
   "result": "PASS",
-  "ms": 1,
+  "ms": 2,
   "evidence": {
     "step": "done",
     "cancel": "cancelled",

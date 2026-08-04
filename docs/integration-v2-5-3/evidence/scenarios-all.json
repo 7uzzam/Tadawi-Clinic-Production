@@ -1,7 +1,7 @@
 {
   "phase": "V2-5.3",
-  "startedAt": "2026-07-31T07:42:39.902Z",
-  "finishedAt": "2026-07-31T07:42:39.951Z",
+  "startedAt": "2026-08-04T22:35:51.981Z",
+  "finishedAt": "2026-08-04T22:35:52.034Z",
   "host": {
     "platform": "linux",
     "arch": "x64",
@@ -15,7 +15,7 @@
       "id": "O01-token-ttl-and-once",
       "title": "Setup token TTL + once-only redeem",
       "result": "PASS",
-      "ms": 6,
+      "ms": 7,
       "evidence": {
         "expired": "token_expired",
         "reused": "bootstrap_already_consumed",
@@ -26,7 +26,7 @@
       "id": "O02-two-device-race",
       "title": "Two-device bootstrap race — one winner",
       "result": "PASS",
-      "ms": 5,
+      "ms": 6,
       "evidence": {
         "wins": 1,
         "errors": [
@@ -48,7 +48,7 @@
       "id": "O04-transfer-and-session-invalidate",
       "title": "Ownership transfer + session invalidation",
       "result": "PASS",
-      "ms": 2,
+      "ms": 3,
       "evidence": {
         "previousOwner": "old",
         "epoch": 2
@@ -58,10 +58,10 @@
       "id": "I01-ids-stable-and-center-confirm",
       "title": "Org/Center/Device IDs + center confirm",
       "result": "PASS",
-      "ms": 3,
+      "ms": 2,
       "evidence": {
         "center": "NJR-CLINIC-DEADBEEF",
-        "deviceUuid": "dev-1785483759923-xizwcjh6",
+        "deviceUuid": "dev-1785882952003-bq973r9y",
         "org": "NJR-CLINIC-DEADBEEF"
       }
     },
@@ -79,7 +79,7 @@
       "id": "L01-limits-grace-upgrade-downgrade",
       "title": "maxUsers + grace + upgrade/downgrade",
       "result": "PASS",
-      "ms": 3,
+      "ms": 2,
       "evidence": {
         "userLimit": "user_limit_reached",
         "grace": "offline_grace_exceeded",
@@ -90,7 +90,7 @@
       "id": "L02-license-persist-markers",
       "title": "License survive markers (uninstall-prep + lifecycle)",
       "result": "PASS",
-      "ms": 22,
+      "ms": 25,
       "evidence": {
         "uninstallPrepExit": 0,
         "refreshed": true

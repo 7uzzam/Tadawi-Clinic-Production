@@ -2,7 +2,7 @@
   "id": "O04-transfer-and-session-invalidate",
   "title": "Ownership transfer + session invalidation",
   "result": "PASS",
-  "ms": 2,
+  "ms": 3,
   "evidence": {
     "previousOwner": "old",
     "epoch": 2

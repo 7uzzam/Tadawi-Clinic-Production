@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T22:11:07.141Z",
+  "at": "2026-08-04T22:36:04.937Z",
   "ok": true,
   "total": 10,
   "passed": 10,
@@ -9,17 +9,17 @@
       "id": "A01-unit-suite",
       "title": "Activation unit suite exit 0",
       "result": "PASS",
-      "ms": 33,
+      "ms": 28,
       "evidence": {
         "exitCode": 0,
-        "at": "2026-07-31T22:11:07.096Z"
+        "at": "2026-08-04T22:36:04.886Z"
       }
     },
     {
       "id": "A02-wizard-steps",
       "title": "Unified stepper Google→…→Ready",
       "result": "PASS",
-      "ms": 2,
+      "ms": 3,
       "evidence": {
         "steps": 8,
         "version": "v2-5.9"
@@ -38,7 +38,7 @@
       "id": "A04-duplicate-prevention",
       "title": "OAuth/license/branch/owner in-flight locks",
       "result": "PASS",
-      "ms": 1,
+      "ms": 0,
       "evidence": {
         "locks": 4
       }
@@ -47,7 +47,7 @@
       "id": "A05-dashboard-gate",
       "title": "Dashboard/login blocked until activation complete",
       "result": "PASS",
-      "ms": 5,
+      "ms": 6,
       "evidence": {
         "finishLoginGate": true,
         "showPageGate": true
@@ -57,9 +57,9 @@
       "id": "A06-inventory",
       "title": "Screen inventory KEEP/MERGE/DELETE",
       "result": "PASS",
-      "ms": 26,
+      "ms": 23,
       "evidence": {
-        "at": "2026-07-31T22:11:07.131Z",
+        "at": "2026-08-04T22:36:04.921Z",
         "ok": true,
         "kept": 14,
         "merged": 1,
@@ -217,7 +217,7 @@
       "id": "A07-responsive-css",
       "title": "Modal max-height + resolution media queries",
       "result": "PASS",
-      "ms": 0,
+      "ms": 7,
       "evidence": {
         "resolutionsTargeted": [
           1024,
@@ -230,9 +230,13 @@
         ],
         "css": {
           "maxHeightViewport": true,
+          "safeArea": true,
+          "modalShell": true,
           "media1024": true,
           "media1280": true,
+          "media1100": true,
           "media900": true,
+          "media720": true,
           "media600": true,
           "overflowXHidden": true,
           "stickyFooter": true
@@ -245,8 +249,8 @@
       "result": "PASS",
       "ms": 1,
       "evidence": {
-        "codes": 33,
-        "diagnosticCode": "TDW-ACT-oauth_timeout-MS9HYCJN"
+        "codes": 36,
+        "diagnosticCode": "TDW-ACT-oauth_timeout-MSF8LUX3"
       }
     },
     {

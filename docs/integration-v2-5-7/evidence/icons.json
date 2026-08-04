@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T00:05:51.164Z",
+  "at": "2026-08-04T22:36:03.824Z",
   "icons": {
     "appIcon": "build/Program-Icon.ico",
     "winIcon": "build/Program-Icon.ico",
@@ -15,19 +15,8 @@
     }
   },
   "iconInspect": {
-    "ok": true,
-    "exePath": "/workspace/dist/win-unpacked/Hijama Management System.exe",
-    "sizeBytes": 225949696,
-    "iconGroupCount": 1,
-    "iconResourceEntries": 8,
-    "groups": [
-      {
-        "id": 1,
-        "lang": 1033,
-        "iconCount": 7
-      }
-    ],
-    "inspectedAt": "2026-07-31T00:05:51.088Z"
+    "ok": false,
+    "reason": "exe_missing"
   },
   "ok": true
 }

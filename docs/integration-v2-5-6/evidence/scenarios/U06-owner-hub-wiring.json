@@ -2,7 +2,7 @@
   "id": "U06-owner-hub-wiring",
   "title": "Owner Hub uses OpsStatus + index scripts",
   "result": "PASS",
-  "ms": 111,
+  "ms": 105,
   "evidence": {
     "ownerHubOpsStatus": true,
     "unitOk": true

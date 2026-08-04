@@ -1,15 +1,15 @@
 {
   "licenseId": "L000001",
-  "licenseUuid": "04fd214a-879d-4966-93cc-a178f14a02d9",
+  "licenseUuid": "3fc722c2-679b-421a-9660-bc154c23e251",
   "licenseSeq": 1,
-  "centerId": "NJR-CLINIC-7EFAD6B1",
+  "centerId": "NJR-CLINIC-19F4D049",
   "packageId": "04",
   "customPackageId": null,
   "subscriptionId": "05",
   "actionId": "03",
   "status": "active",
-  "issueDate": "2026-07-31",
-  "expiryDate": "2027-07-31",
+  "issueDate": "2026-08-04",
+  "expiryDate": "2027-08-04",
   "devices": 0,
   "branches": 2,
   "branchesList": null,
@@ -27,7 +27,7 @@
   "notes": "",
   "renewHistory": [
     {
-      "date": "2026-07-31",
+      "date": "2026-08-04",
       "fromPackage": "03",
       "toPackage": "04",
       "mode": "upgrade_only",
@@ -36,11 +36,11 @@
     }
   ],
   "tokens": [
-    "V5-L000001-1785483677172",
-    "V5-UPG-L000001-1785483677235"
+    "V5-L000001-1785882988258",
+    "V5-UPG-L000001-1785882988322"
   ],
-  "createdAt": "2026-07-31T07:41:17.170Z",
-  "updatedAt": "2026-07-31T07:41:17.235Z",
-  "bundleSig": "c46414ae68d221417344b8a6be177946bf49481f95554b51fd381b05535656d0",
-  "productKey": "TDWI2-P04AA-CYSAA-A98JC-ZVJ9P"
+  "createdAt": "2026-08-04T22:36:28.256Z",
+  "updatedAt": "2026-08-04T22:36:28.321Z",
+  "bundleSig": "d99a0ff1d9b758a1b581214bed1582f0a437bf868e155dde64c37e52b18d7aee",
+  "productKey": "TDWI2-P04AA-CYWAA-A98JC-ZF23D"
 }

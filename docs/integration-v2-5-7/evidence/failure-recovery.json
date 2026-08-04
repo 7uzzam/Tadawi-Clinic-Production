@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-31T00:05:51.575Z",
+  "at": "2026-08-04T22:36:04.014Z",
   "paths": [
     "corrupt.db → DatabaseOpenError → original preserved (no empty replace)",
     "app-only uninstall → license + database retained",

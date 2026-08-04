@@ -1,41 +1,18 @@
 {
   "phase": "V2-5.7",
-  "at": "2026-07-31T00:05:51.164Z",
+  "at": "2026-08-04T22:36:03.824Z",
   "version": "2.0.1",
   "productName": "Hijama Management System",
   "platform": "linux",
   "arch": "x64",
-  "distExists": true,
-  "artifactsPresent": true,
-  "distDeferred": false,
+  "distExists": false,
+  "artifactsPresent": false,
+  "distDeferred": true,
   "artifacts": {
-    "setup": {
-      "path": "dist/HijamaManagement-Setup-2.0.1.exe",
-      "sizeBytes": 554328,
-      "sha256": "73adfa5ce40123916f92efb1971b7b125e601b34a1a3f0fcbe9c53fa87d8d2a7",
-      "mtime": "2026-07-30T20:18:26.017Z"
-    },
-    "allSetupExes": [
-      {
-        "path": "dist/HijamaManagement-Setup-2.0.0.exe",
-        "sizeBytes": 550592,
-        "sha256": "3b22f3e5c0dadc85ae476df02cdabad9907594b3b680f3a883fd554132c010b5",
-        "mtime": "2026-07-29T10:09:16.778Z"
-      },
-      {
-        "path": "dist/HijamaManagement-Setup-2.0.1.exe",
-        "sizeBytes": 554328,
-        "sha256": "73adfa5ce40123916f92efb1971b7b125e601b34a1a3f0fcbe9c53fa87d8d2a7",
-        "mtime": "2026-07-30T20:18:26.017Z"
-      }
-    ],
-    "winUnpacked": {
-      "path": "dist/win-unpacked/Hijama Management System.exe",
-      "sizeBytes": 225949696,
-      "sha256": "8fe1a2c82d281c9e30167377ed0e69c84b414686e25c84ca9e4c0ed1a711869e",
-      "mtime": "2026-07-30T20:16:44.661Z"
-    },
-    "winUnpackedPresent": true,
+    "setup": null,
+    "allSetupExes": [],
+    "winUnpacked": null,
+    "winUnpackedPresent": false,
     "portable": {
       "supported": false,
       "reason": "package.json build.win.target lists only nsis (x64); portable is not an official build target for V2-5.7",
@@ -59,28 +36,17 @@
       }
     },
     "iconInspect": {
-      "ok": true,
-      "exePath": "/workspace/dist/win-unpacked/Hijama Management System.exe",
-      "sizeBytes": 225949696,
-      "iconGroupCount": 1,
-      "iconResourceEntries": 8,
-      "groups": [
-        {
-          "id": 1,
-          "lang": 1033,
-          "iconCount": 7
-        }
-      ],
-      "inspectedAt": "2026-07-31T00:05:51.088Z"
+      "ok": false,
+      "reason": "exe_missing"
     },
     "sourceArchive": {
-      "at": "2026-07-31T00:05:51.162Z",
-      "commit": "074ddc0e709360b262dad39aa49ff54ba9908685",
+      "at": "2026-08-04T22:36:03.824Z",
+      "commit": "aa54301820fe90d42dfbcea6e8ca6013a9514863",
       "archive": {
-        "path": "docs/integration-v2-5-7/evidence/source-release-074ddc0e7093.tar.gz",
-        "sizeBytes": 483251,
-        "sha256": "07eded019726eb653fda45639a791e699cb13167a26da080482b7950f43251f7",
-        "mtime": "2026-07-31T00:05:51.158Z",
+        "path": "docs/integration-v2-5-7/evidence/source-release-aa54301820fe.tar.gz",
+        "sizeBytes": 555212,
+        "sha256": "e78bf27dce687445d5335d3ec8bdc9678e0889ae080da280549bdb2267d00232",
+        "mtime": "2026-08-04T22:36:03.818Z",
         "ok": true
       },
       "method": "tar",

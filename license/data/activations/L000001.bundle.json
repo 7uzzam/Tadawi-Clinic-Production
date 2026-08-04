@@ -2,15 +2,15 @@
   "schemaVersion": 1,
   "bundleVersion": "1.3.0",
   "licenseId": "L000001",
-  "licenseUuid": "04fd214a-879d-4966-93cc-a178f14a02d9",
+  "licenseUuid": "3fc722c2-679b-421a-9660-bc154c23e251",
   "licenseSeq": 1,
-  "centerId": "NJR-CLINIC-7EFAD6B1",
+  "centerId": "NJR-CLINIC-19F4D049",
   "packageId": "04",
   "packageInternalName": "enterprise",
   "customPackageId": null,
   "subscriptionId": "05",
   "actionId": "03",
-  "expiryDate": "2027-07-31",
+  "expiryDate": "2027-08-04",
   "devices": 0,
   "branches": 2,
   "maxUsers": 15,
@@ -94,5 +94,5 @@
   },
   "featureSig": "mock-sig-att_daily,att_leave,att_overtime,att_policy,att_report,bk_cloud,bk_custom,bk_drive,bk_local,book_confirm,book_no_show,book_schedule,cloud_multi_device,cloud_owner_hub,core_clients,core_dashboard,core_employee,core_packages,core_pos,core_settings,core_staff,core_users,crm_invoice_search,crm_search,dash_book_kpi,dash_exp_kpi,dash_msg_alert,exp_budget,exp_track,fin_cashfloat,fin_currency,hr_leave_balance,hr_leave_requests,hr_ledger,hw_drawer,hw_status,hw_thermal,lux_queue_board,lux_queue_display,lux_queue_print,lux_rush,lux_vip,msg_auto,msg_bulk,msg_retention,msg_templates,ops_client_file,ops_inventory,ops_map_editor,pay_commission,pay_salary,pkg_bank,pkg_commissions,pos_multi_svc,pos_receipt,pos_shared_pkg,rep_archive_a4,rep_doctors,rep_monthly,rep_profitability,rep_sales,rep_thermal_period,rep_vat,rep_zreport,sys_logs,tech_import,tech_msg_api,tech_print_pdf",
   "edition": "full",
-  "bundleSig": "757064a6acd91ccdb02a59ead835d3a08dad731251619a86dba4c06f0e4949db"
+  "bundleSig": "4c57ead992e7bdf64599eb9e1e07b731d46ad0d059c6866c5debb56bc84688ce"
 }

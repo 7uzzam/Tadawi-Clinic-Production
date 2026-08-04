@@ -2,7 +2,7 @@
   "id": "P03-perf-bench-median",
   "title": "Perf benches median-of-3 + incremental policy",
   "result": "PASS",
-  "ms": 277,
+  "ms": 270,
   "evidence": {
     "labels": [
       "scaleSeed",

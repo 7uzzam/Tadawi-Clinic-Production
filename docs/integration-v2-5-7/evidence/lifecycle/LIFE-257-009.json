@@ -3,7 +3,7 @@
   "title": "Silent uninstall defaults app-only",
   "ok": true,
   "result": "PASS",
-  "at": "2026-07-31T00:05:51.347Z",
+  "at": "2026-08-04T22:36:04.004Z",
   "evidence": {
     "silentDefaultsAppOnly": true,
     "fullWipeRequiresFlag": true,

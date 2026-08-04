@@ -2,7 +2,7 @@
   "id": "S04-license-pull-public",
   "title": "License list/download/cache write public; no list side-effect create",
   "result": "PASS",
-  "ms": 0,
+  "ms": 1,
   "evidence": {
     "licensePullPublic": true,
     "noCreateSideEffect": true
