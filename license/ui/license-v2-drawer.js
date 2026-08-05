@@ -98,9 +98,17 @@
 
   function listUserPackages() {
     const fromBuilder = CL.packageBuilder?.listSavedPackages?.();
-    if (fromBuilder?.length) return fromBuilder;
-    const registry = (CL.registries?.package?.packages || [])
-      .filter(p => p.visible !== false && !['06', '99'].includes(p.id))
+    if (fromBuilder?.length) {
+      return fromBuilder.filter((p) => {
+        if (p.type === 'custom') return true;
+        return global.PackageRegistryViewer?.isCustomerPackageId?.(p.id)
+          || ['01', '02', '03', '04'].includes(String(p.id || ''));
+      });
+    }
+    const registryPkgs = CL.registries?.package?.packages || [];
+    const filtered = global.PackageRegistryViewer?.filterLicenseBuilderPackages?.(registryPkgs)
+      || registryPkgs.filter(p => p.visible !== false && !['05', '06', '99', '10'].includes(p.id));
+    const registry = filtered
       .map(p => ({
         type: 'registry',
         id: p.id,

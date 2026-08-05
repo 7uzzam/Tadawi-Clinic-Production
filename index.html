@@ -5449,7 +5449,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <button class="btn btn-ghost btn-sm" onclick="exportToday()">📥 تصدير CSV</button>
           <button class="btn btn-ghost btn-sm btn-print-a4" onclick="printToday()" title="معاينة كشف حالات اليوم قبل الطباعة">👁️ معاينة كشف اليوم</button>
           <button class="btn btn-ghost btn-sm btn-print-a4" data-feature="rep_zreport" onclick="printZReport()">Z-Report A4</button>
-          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="previewDailyThermal()">👁️ معاينة الدخل الحراري</button>
+          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="printDailyThermal()">فاتورة الدخل الحراري</button>
         </div>
         </div>
       </div>
@@ -5635,7 +5635,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <button class="btn btn-primary btn-sm" onclick="generateMonthlyReport()">📊 عرض</button>
           <button class="btn btn-accent btn-sm btn-print-a4" onclick="exportReport()" title="معاينة التقرير الشهري قبل الطباعة">👁️ معاينة التقرير الشهري</button>
           <button class="btn btn-primary btn-sm btn-print-a4" data-feature="rep_archive_a4" onclick="MonthlyArchive.openModal()">📂 أرشيف الشهر A4</button>
-          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="previewThermalSummary()" data-feature="rep_thermal_period">👁️ معاينة حرارية للفترة</button>
+          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="printThermalSummary()" data-feature="rep_thermal_period">فاتورة حرارية للفترة</button>
         </div>
       </div>
 
@@ -8120,11 +8120,11 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
     <div id="receiptContent"></div>
     <div class="divider"></div>
     <div class="receipt-modal-actions">
-      <button class="btn btn-primary btn-sm invoice-system-action simplified-tax-invoice-action" onclick="printSimplifiedTaxThermalFromModal()">🧾 طباعة فاتورة ضريبية حرارية</button>
+      <button class="btn btn-primary btn-sm invoice-system-action simplified-tax-invoice-action" data-receipt-scope="case-only" onclick="printSimplifiedTaxThermalFromModal()">🧾 طباعة فاتورة ضريبية حرارية</button>
       <button class="btn btn-primary btn-sm invoice-system-action" onclick="printReceiptNow()">🖨️ فاتورة حرارية</button>
-      <button class="btn btn-ghost btn-sm" data-feature="ops_client_file" onclick="printClientFileFromSavedCase()">📄 ملف العميل</button>
-      <button class="btn btn-ghost btn-sm invoice-system-action" data-feature="hw_drawer" onclick="openCashDrawerForCurrentReceipt()">💵 فتح الدرج</button>
-      <button class="btn btn-accent btn-sm invoice-system-action" id="receiptWABtn" onclick="">💬 واتساب</button>
+      <button class="btn btn-ghost btn-sm" data-receipt-scope="case-only" data-feature="ops_client_file" onclick="printClientFileFromSavedCase()">📄 ملف العميل</button>
+      <button class="btn btn-ghost btn-sm invoice-system-action" data-receipt-scope="case-only" data-feature="hw_drawer" onclick="openCashDrawerForCurrentReceipt()">💵 فتح الدرج</button>
+      <button class="btn btn-accent btn-sm invoice-system-action" data-receipt-scope="case-only" id="receiptWABtn" onclick="">💬 واتساب</button>
       <button class="btn btn-ghost btn-sm btn-close-receipt" onclick="closeReceiptModal()">إغلاق</button>
     </div>
   </div>
@@ -19343,15 +19343,14 @@ function buildDailyThermalHtml() {
 function previewDailyThermal() {
   const html = buildDailyThermalHtml();
   if (!html) { notify('⚠️ لا توجد حالات اليوم', 'danger'); return; }
-  const doc = typeof wrapThermalReceiptHtml === 'function' ? wrapThermalReceiptHtml(html) : html;
-  openReportPreview(doc, 'معاينة الدخل الحراري');
+  showThermalReceiptPreview(html, 'فاتورة الدخل اليومي');
 }
 window.previewDailyThermal = previewDailyThermal;
 
 async function printDailyThermal() {
   const html = buildDailyThermalHtml();
   if (!html) { notify('⚠️ لا توجد حالات اليوم', 'danger'); return; }
-  await printThermalDoc(html, '🖨️ تم إرسال فاتورة الدخل اليومي للطباعة');
+  await printThermalDoc(html, '🖨️ تم إرسال فاتورة الدخل اليومي للطباعة', { thermal: true, title: 'فاتورة الدخل اليومي' });
 }
 
 function changePassword() {
@@ -19669,7 +19668,7 @@ window.refreshSettingsThermalPreview = refreshSettingsThermalPreview;
 
 async function printThermalDoc(html, successMsg, options) {
   if (!html) { notify('⚠️ لا يوجد محتوى للطباعة', 'danger'); return { ok: false }; }
-  options = options || {};
+  options = Object.assign({ thermal: true }, options || {});
   if (typeof DocumentPreviewBridge !== 'undefined' && DocumentPreviewBridge.shouldPreviewFirst?.(options)) {
     const prev = DocumentPreviewBridge.openPreview(html, options.title || 'معاينة فاتورة حرارية', options);
     if (prev?.ok) return { ok: true, preview: true };
@@ -20372,6 +20371,48 @@ function buildReceiptHTML(c) {
       </div>
     </div>`;
 }
+function configureReceiptModalActions(scope) {
+  const isCase = scope === 'case';
+  document.querySelectorAll('#receiptModal [data-receipt-scope="case-only"]').forEach((el) => {
+    el.style.display = isCase ? '' : 'none';
+  });
+}
+
+function showThermalReceiptPreview(html, title, options) {
+  options = options || {};
+  if (!html) {
+    notify('⚠️ لا يوجد محتوى للمعاينة', 'danger');
+    return { ok: false };
+  }
+  window._currentReceiptCaseId = options.caseId || null;
+  syncThermalPreviewCss();
+  const wrapped = typeof wrapThermalReceiptHtml === 'function' ? wrapThermalReceiptHtml(html) : html;
+  document.getElementById('receiptContent').innerHTML = wrapped;
+  const titleEl = document.querySelector('#receiptModal .modal-title');
+  if (titleEl) titleEl.textContent = title ? `🧾 ${title}` : '🧾 معاينة فاتورة حرارية';
+  configureReceiptModalActions(options.caseId ? 'case' : 'report');
+  if (options.caseId) {
+    const c = cases.find((x) => x.id === options.caseId);
+    const waBtn = document.getElementById('receiptWABtn');
+    if (waBtn) {
+      waBtn.style.display = c?.phone ? '' : 'none';
+      if (c?.phone) waBtn.onclick = () => sendReceiptWhatsApp(c.id);
+    }
+    const invOn = typeof isInvoiceSystemEnabled !== 'function' || isInvoiceSystemEnabled();
+    document.querySelectorAll('.invoice-system-action').forEach((el) => {
+      if (el.id === 'receiptWABtn' && !c?.phone) return;
+      el.classList.toggle('invoice-system-hidden', !invOn);
+    });
+  } else {
+    document.querySelectorAll('.invoice-system-action').forEach((el) => {
+      el.classList.remove('invoice-system-hidden');
+    });
+  }
+  document.getElementById('receiptModal').classList.add('open');
+  return { ok: true, mode: 'receipt_modal' };
+}
+window.showThermalReceiptPreview = showThermalReceiptPreview;
+
 function showReceipt(caseId) {
   let c = cases.find(x => x.id === caseId);
   if (!c) return;
@@ -20379,22 +20420,7 @@ function showReceipt(caseId) {
     const primary = cases.find(x => x.sharedSessionId === c.sharedSessionId && x.sharedRole === 'primary');
     if (primary) c = primary;
   }
-  window._currentReceiptCaseId = c.id;
-  syncThermalPreviewCss();
-  document.getElementById('receiptContent').innerHTML = buildReceiptHTML(c);
-  const titleEl = document.querySelector('#receiptModal .modal-title');
-  if (titleEl) titleEl.textContent = `🧾 ${formatInvoiceDisplay(c.invoice)}`;
-  const waBtn = document.getElementById('receiptWABtn');
-  if (waBtn) {
-    waBtn.style.display = c.phone ? '' : 'none';
-    if (c.phone) waBtn.onclick = () => sendReceiptWhatsApp(c.id);
-  }
-  const invOn = typeof isInvoiceSystemEnabled !== 'function' || isInvoiceSystemEnabled();
-  document.querySelectorAll('.invoice-system-action').forEach(el => {
-    if (el.id === 'receiptWABtn' && !c.phone) return;
-    el.classList.toggle('invoice-system-hidden', !invOn);
-  });
-  document.getElementById('receiptModal').classList.add('open');
+  showThermalReceiptPreview(buildReceiptHTML(c), formatInvoiceDisplay(c.invoice), { caseId: c.id });
 }
 
 function exportReceiptPdfFromModal() {
@@ -22494,7 +22520,7 @@ function printSalesReport() {
 async function printThermalSummary() {
   const html = buildThermalSummaryHtml();
   if (!html) return;
-  await printThermalDoc(html, '🖨️ تم إرسال ملخص الفترة الحراري للطباعة');
+  await printThermalDoc(html, '🖨️ تم إرسال ملخص الفترة الحراري للطباعة', { thermal: true, title: 'ملخص الفترة — حراري' });
 }
 
 function buildThermalSummaryHtml() {
@@ -22586,8 +22612,7 @@ function buildThermalSummaryHtml() {
 function previewThermalSummary() {
   const html = buildThermalSummaryHtml();
   if (!html) return;
-  const doc = typeof wrapThermalReceiptHtml === 'function' ? wrapThermalReceiptHtml(html) : html;
-  openReportPreview(doc, 'معاينة ملخص الفترة — حراري');
+  showThermalReceiptPreview(html, 'ملخص الفترة — حراري');
 }
 window.previewThermalSummary = previewThermalSummary;
 

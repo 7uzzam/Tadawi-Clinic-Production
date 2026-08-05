@@ -30,8 +30,10 @@
   }
 
   function listSavedPackages() {
-    const registry = (CL.registries?.package?.packages || [])
-      .filter(p => p.visible !== false && !['06', '99'].includes(p.id))
+    const registryPkgs = CL.registries?.package?.packages || [];
+    const filtered = global.PackageRegistryViewer?.filterLicenseBuilderPackages?.(registryPkgs)
+      || registryPkgs.filter(p => p.visible !== false && !['05', '06', '99', '10'].includes(p.id));
+    const registry = filtered
       .map(p => ({
         type: 'registry',
         id: p.id,

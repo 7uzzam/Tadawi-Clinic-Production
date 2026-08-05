@@ -11,8 +11,21 @@
     return !!(global.settings?.devices?.previewBeforePrint);
   }
 
+  function isThermalReceiptHtml(html) {
+    const s = String(html || '').trim();
+    if (!s) return false;
+    return /<div[^>]*class="[^"]*\breceipt\b/i.test(s)
+      || /\br-brand\b/.test(s)
+      || /\br-total-box\b/.test(s)
+      || /\br-tagline\b/.test(s);
+  }
+
   function openPreview(html, title, options) {
     options = options || {};
+    const thermal = options.thermal || isThermalReceiptHtml(html);
+    if (thermal && typeof global.showThermalReceiptPreview === 'function') {
+      return global.showThermalReceiptPreview(html, title || 'معاينة فاتورة حرارية', options);
+    }
     if (typeof global.openReportPreview === 'function') {
       global.openReportPreview(html, title || 'معاينة المستند');
       return { ok: true, mode: 'report_preview' };
@@ -31,14 +44,14 @@
 
   async function printOrPreview(html, options) {
     options = options || {};
-    const isThermal = !!options.thermal;
+    const isThermal = !!options.thermal || isThermalReceiptHtml(html);
     const title = options.title || (isThermal ? 'معاينة فاتورة حرارية' : 'معاينة مستند');
     if (shouldPreviewFirst(options)) {
-      const prev = openPreview(html, title, options);
+      const prev = openPreview(html, title, { ...options, thermal: isThermal });
       if (prev.ok) return { ok: true, preview: true, ...prev };
     }
     if (isThermal && typeof global.printThermalDoc === 'function') {
-      await global.printThermalDoc(html, options.successMsg || null, options);
+      await global.printThermalDoc(html, options.successMsg || null, { ...options, thermal: true, skipPreview: true });
       return { ok: true, printed: true, mode: 'thermal' };
     }
     if (typeof global.printHTML === 'function') {
@@ -50,6 +63,7 @@
 
   global.DocumentPreviewBridge = {
     shouldPreviewFirst,
+    isThermalReceiptHtml,
     openPreview,
     printOrPreview,
   };

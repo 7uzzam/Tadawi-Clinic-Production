@@ -33,7 +33,11 @@ check(/id="bk-v2-pass"[\s\S]*display:none/.test(indexSrc) || /aria-hidden="true"
 check(/parseISODateLocal/.test(indexSrc) && /recordMatchesMonth/.test(indexSrc),
   'local ISO date parsing for reports');
 check(/previewThermalSummary/.test(indexSrc) && /previewDailyThermal/.test(indexSrc),
-  'thermal preview before print');
+  'thermal preview helpers present');
+check(/showThermalReceiptPreview/.test(indexSrc) && /receiptModal/.test(indexSrc),
+  'thermal preview uses receipt modal popup');
+check(!/previewThermalSummary[\s\S]{0,120}openReportPreview/.test(indexSrc),
+  'thermal summary must not use A4 report preview');
 
 check(/applyBranchViewModeUi/.test(indexSrc) && /page-readonly/.test(indexSrc),
   'owner aggregate read-only UI');

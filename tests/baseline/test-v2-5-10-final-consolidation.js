@@ -37,6 +37,12 @@ check(/operationalFileCandidates/.test(resolverSrc), 'DrivePathResolver operatio
 check(/allCenterRoots/.test(resolverSrc), 'DrivePathResolver all center roots');
 
 check(/openPreview/.test(previewSrc) && /printOrPreview/.test(previewSrc), 'DocumentPreviewBridge API');
+check(/showThermalReceiptPreview/.test(previewSrc) || /isThermalReceiptHtml/.test(previewSrc),
+  'DocumentPreviewBridge routes thermal to receipt modal');
+
+const pkgViewer = fs.readFileSync(path.join(root, 'license/ui/package-registry-viewer.js'), 'utf8');
+check(/filterLicenseBuilderPackages/.test(pkgViewer) && /CANONICAL_IDS.*01.*04/s.test(pkgViewer),
+  'package viewer exposes 4 customer packages filter');
 
 check(/LegacyBranchMigrationUI\?\.maybePrompt/.test(initSrc), 'cloud-v2-init prompts legacy migration');
 

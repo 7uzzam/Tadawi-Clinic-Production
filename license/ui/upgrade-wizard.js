@@ -157,7 +157,9 @@
   }
 
   function renderStep3(body) {
-    const pkgs = (CL.registries?.package?.packages || []).filter(p => p.visible !== false && p.id !== '99');
+    const allPkgs = CL.registries?.package?.packages || [];
+    const pkgs = global.PackageRegistryViewer?.filterLicenseBuilderPackages?.(allPkgs)
+      || allPkgs.filter(p => p.visible !== false && p.id !== '99' && !['05', '06', '10'].includes(p.id));
     body.innerHTML = '<p>الباقة المستهدفة:</p><div class="lic-v2-pkg-grid">' +
       pkgs.map(p => `
         <div class="lic-v2-pkg-card${_state.targetPackageId === p.id ? ' selected' : ''}" data-pkg="${p.id}">

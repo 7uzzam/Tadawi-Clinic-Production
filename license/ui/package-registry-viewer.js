@@ -5,6 +5,7 @@
   'use strict';
 
   const CANONICAL_IDS = ['01', '02', '03', '04'];
+  const INTERNAL_PACKAGE_IDS = ['05', '06', '99', '10'];
 
   function loadInlinePackages() {
     const reg = global.FEATURE_REGISTRY || [];
@@ -22,18 +23,33 @@
     return null;
   }
 
+  function isCustomerPackageId(id) {
+    return CANONICAL_IDS.includes(String(id || ''));
+  }
+
+  function filterCustomerPackages(packages) {
+    return (packages || []).filter((p) => p && isCustomerPackageId(p.id));
+  }
+
+  function filterLicenseBuilderPackages(packages) {
+    return (packages || []).filter((p) => {
+      if (!p || p.visible === false) return false;
+      if (INTERNAL_PACKAGE_IDS.includes(String(p.id))) return false;
+      return isCustomerPackageId(p.id);
+    });
+  }
+
   async function getPackageCatalog() {
     const json = await loadJsonRegistry('package');
     const packages = (json?.packages || []).filter((p) => p && p.visible !== false);
     const canonical = packages.filter((p) => CANONICAL_IDS.includes(p.id));
     const ordered = CANONICAL_IDS.map((id) => canonical.find((p) => p.id === id)).filter(Boolean);
-    const rest = packages.filter((p) => !CANONICAL_IDS.includes(p.id));
-    return { packages: [...ordered, ...rest], source: json ? 'json' : 'inline', registryVersion: json?.registryVersion };
+    return { packages: ordered, source: json ? 'json' : 'inline', registryVersion: json?.registryVersion };
   }
 
   function renderSummaryHtml(catalog) {
     catalog = catalog || { packages: [] };
-    const rows = (catalog.packages || []).slice(0, 8).map((p) => {
+    const rows = filterCustomerPackages(catalog.packages).map((p) => {
       const feats = (p.featureIds || []).length;
       return `<tr><td>${p.icon || '📦'} ${p.displayNameAr || p.displayName || p.internalName}</td><td dir="ltr">${p.id}</td><td>${feats}</td><td>${p.branches || '—'}</td><td>${p.devices || '—'}</td></tr>`;
     }).join('');
@@ -42,7 +58,11 @@
 
   global.PackageRegistryViewer = {
     CANONICAL_IDS,
+    INTERNAL_PACKAGE_IDS,
     loadInlinePackages,
+    isCustomerPackageId,
+    filterCustomerPackages,
+    filterLicenseBuilderPackages,
     getPackageCatalog,
     renderSummaryHtml,
   };
