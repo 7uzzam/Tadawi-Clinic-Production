@@ -69,7 +69,10 @@
       || lic?.branchId
       || null;
     const centerName = lic?.centerName || lic?.organizationName || global.DeviceConfig?.load?.()?.centerName || '';
-    return { lic, centerId, branchId, centerName };
+    const branchName = (lic?.branches || []).find((b) => b && b.id === branchId)?.name
+      || global.DeviceConfig?.load?.()?.branchName
+      || '';
+    return { lic, centerId, branchId, branchName, centerName };
   }
 
   function probeLocalDatabase() {
@@ -179,6 +182,7 @@
       return b.discoverCloudRestorePoints({
         centerId: identity.centerId,
         branchId: identity.branchId,
+        branchName: identity.branchName,
         centerName: identity.centerName,
         timeoutMs: options.timeoutMs || DISCOVERY_TIMEOUT_MS,
       });

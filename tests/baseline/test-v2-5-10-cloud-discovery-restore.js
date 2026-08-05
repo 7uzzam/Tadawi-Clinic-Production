@@ -28,6 +28,9 @@ check(/downloadedFullBackup:\s*false/.test(mainDiscovery), 'discovery never clai
 check(!/downloadBackup\(/.test(mainDiscovery), 'main discovery must not call downloadBackup');
 check(!/collectBackupFiles/.test(mainDiscovery), 'main discovery must not recurse collectBackupFiles');
 check(/listFolderShallow/.test(mainDiscovery), 'shallow folder listing present');
+check(/buildDiscoveryProbeFolders/.test(mainDiscovery) && /Backups\/V2/.test(mainDiscovery),
+  'discovery probes Backups/V2 and expanded folder layouts');
+check(/buildVersionsProbePaths/.test(mainDiscovery), 'discovery probes multiple versions.json paths');
 check(/DISCOVERY_OVERALL_MS\s*=\s*15000/.test(mainDiscovery), '15s overall discovery budget');
 check(/discovery_timeout/.test(mainDiscovery), 'timeout error codes present');
 

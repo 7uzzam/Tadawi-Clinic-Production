@@ -1143,7 +1143,7 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
                الحجم: ${Discovery.formatBytes(newest.sizeBytes)}<br>
                الملف: <code dir="ltr">${newest.name || newest.path || '—'}</code><br>
                التحقق: ${newest.validation || 'metadata_ok'}`
-            : `الحالة: <strong>${cloudStatus}</strong><br>${cloud.message || 'لم يتم العثور على بيانات سحابية لهذا الفرع.'}`;
+            : `الحالة: <strong>${cloudStatus}</strong><br>${cloud.message || 'لم يتم العثور على نسخ سحابية — جرّب «ملف Backup» أو تأكد من حساب Google.'}`;
 
           const cloudCard = addSourceCard({
             title: '☁️ أحدث بيانات سحابية',
