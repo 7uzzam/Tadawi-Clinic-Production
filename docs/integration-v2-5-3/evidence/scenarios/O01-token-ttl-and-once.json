@@ -2,7 +2,7 @@
   "id": "O01-token-ttl-and-once",
   "title": "Setup token TTL + once-only redeem",
   "result": "PASS",
-  "ms": 6,
+  "ms": 7,
   "evidence": {
     "expired": "token_expired",
     "reused": "bootstrap_already_consumed",

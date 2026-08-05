@@ -2,7 +2,7 @@
   "id": "L02-license-persist-markers",
   "title": "License survive markers (uninstall-prep + lifecycle)",
   "result": "PASS",
-  "ms": 22,
+  "ms": 25,
   "evidence": {
     "uninstallPrepExit": 0,
     "refreshed": true

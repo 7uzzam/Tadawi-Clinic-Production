@@ -46,16 +46,15 @@
 
   async function listCenterDriveFiles(centerId) {
     const bridge = global.BackupBridge;
-    const roots = global.DriveLayout?.centerRootCandidates?.(centerId) || [];
-    const legacy = global.DriveLayout?.legacyCenterRoot?.(centerId);
-    const primary = global.DriveLayout?.centerRoot?.(centerId);
-    const scanRoots = [...new Set([...roots, legacy, primary, `NajjarTech/${centerId}`].filter(Boolean))];
+    const roots = global.DrivePathResolver?.allCenterRoots?.(centerId)
+      || global.DriveLayout?.centerRootCandidates?.(centerId) || [];
     if (!bridge?.listCloudBackups) {
       return { ok: false, error: 'list_unavailable', items: [] };
     }
     if (!global.DriveAdapter?.isConnected?.()) {
       return { ok: false, offline: true, items: [] };
     }
+    const scanRoots = [...new Set(roots.filter(Boolean))];
     const items = [];
     for (const root of scanRoots) {
       const list = await bridge.listCloudBackups('google', root);

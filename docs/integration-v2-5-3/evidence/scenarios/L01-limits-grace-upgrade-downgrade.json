@@ -2,7 +2,7 @@
   "id": "L01-limits-grace-upgrade-downgrade",
   "title": "maxUsers + grace + upgrade/downgrade",
   "result": "PASS",
-  "ms": 3,
+  "ms": 2,
   "evidence": {
     "userLimit": "user_limit_reached",
     "grace": "offline_grace_exceeded",

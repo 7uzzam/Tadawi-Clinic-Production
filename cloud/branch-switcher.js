@@ -1,8 +1,13 @@
 /**
  * Branch Switcher — topbar selector for multi-branch admin/accountant (Cloud V2).
+ * V2-5.10: confirmed work-branch switch + BranchContexts operational write branch.
  */
 (function (global) {
   'use strict';
+
+  const ALL_BRANCHES_VALUE = '__ALL__';
+  let _pendingBranch = null;
+  let _confirmOpen = false;
 
   function getBranches() {
     const doc = global.LicenseCloud?.loadLocal?.();
@@ -15,6 +20,87 @@
     if (!global.currentUser) return false;
     if (!global.BranchScope?.canUserSwitchBranch?.(global.currentUser)) return false;
     return getBranches().length > 1;
+  }
+
+  function branchName(bid) {
+    return getBranches().find(b => b.id === bid)?.name || bid;
+  }
+
+  function refreshSurfaces() {
+    if (typeof global.reloadClientStoreFromDb === 'function') global.reloadClientStoreFromDb();
+    if (typeof global.refreshCaseDerivedViews === 'function') global.refreshCaseDerivedViews();
+    if (typeof global.refreshDashboard === 'function') global.refreshDashboard();
+    if (typeof global.refreshDailyTable === 'function') global.refreshDailyTable();
+    if (typeof global.refreshBookingsTable === 'function') global.refreshBookingsTable();
+    if (typeof global.refreshClientsView === 'function') global.refreshClientsView(false);
+    if (typeof global.refreshInvoicesPage === 'function') global.refreshInvoicesPage(false);
+    if (typeof global.refreshDashboardAlerts === 'function') global.refreshDashboardAlerts();
+    if (typeof global.refreshDoctorsTable === 'function') global.refreshDoctorsTable();
+    if (typeof global.refreshUsersTable === 'function') global.refreshUsersTable();
+    if (typeof global.renderReportsPage === 'function') global.renderReportsPage();
+    if (typeof global.renderOwnerHubPage === 'function') global.renderOwnerHubPage();
+    if (typeof global.showPage === 'function') {
+      try {
+        const active = document.querySelector('.page.active')?.id;
+        if (active) global.showPage(active.replace('Page', ''));
+      } catch { /* empty */ }
+    }
+    if (typeof global.BranchSwitcher?.populate === 'function') global.BranchSwitcher.populate();
+  }
+
+  function applyBranchSwitch(bid) {
+    try { sessionStorage.setItem('__tdw_branch_drawer_pref__', bid); } catch { /* empty */ }
+    if (bid === ALL_BRANCHES_VALUE) {
+      try { global.OwnerBranchMode?.exitToOwnerMode?.(); } catch { /* empty */ }
+      global.BranchContexts?.clearOperationalWriteBranch?.();
+      global.BranchScope?.setActiveBranchId?.('*');
+      global.notify?.('🌐 عرض كل الفروع (تجميعي) — وضع قراءة للعمليات', 'info');
+    } else {
+      global.BranchContexts?.setOperationalWriteBranch?.(bid, { bindDevice: false });
+      global.BranchScope?.setActiveBranchId?.(bid);
+      try {
+        if (global.RolePolicy?.isOrganizationOwner?.(global.currentUser)
+          || String(global.currentUser?.role || '').toLowerCase() === 'owner') {
+          global.OwnerBranchMode?.enterBranchMode?.(bid);
+        }
+      } catch { /* empty */ }
+      global.notify?.('🌿 تم التبديل إلى: ' + branchName(bid), 'info');
+    }
+    refreshSurfaces();
+    if (typeof global.applyBranchViewModeUi === 'function') global.applyBranchViewModeUi();
+  }
+
+  function confirmSwitch(bid, sel) {
+    if (_confirmOpen) return;
+    const from = global.BranchContexts?.getOperationalWriteBranch?.()
+      || global.BranchScope?.getActiveBranchId?.()
+      || 'BR-MAIN';
+    if (bid === from || bid === ALL_BRANCHES_VALUE && from === '*') {
+      applyBranchSwitch(bid);
+      return;
+    }
+    const msg = bid === ALL_BRANCHES_VALUE
+      ? 'التبديل إلى عرض كل الفروع؟ العمليات التشغيلية للقراءة فقط.'
+      : `تأكيد العمل على فرع «${branchName(bid)}» (${bid})؟ سيتم تحديث القوائم والحفظ لهذا الفرع.`;
+  _pendingBranch = bid;
+    _confirmOpen = true;
+    if (typeof global.confirmAsync === 'function') {
+      global.confirmAsync(msg, { title: 'تبديل فرع العمل' }).then((ok) => {
+        _confirmOpen = false;
+        if (ok) applyBranchSwitch(bid);
+        else if (sel) sel.value = from === '*' ? ALL_BRANCHES_VALUE : from;
+        _pendingBranch = null;
+      });
+      return;
+    }
+    if (global.confirm(msg)) {
+      _confirmOpen = false;
+      applyBranchSwitch(bid);
+    } else if (sel) {
+      sel.value = from === '*' ? ALL_BRANCHES_VALUE : from;
+    }
+    _pendingBranch = null;
+    _confirmOpen = false;
   }
 
   function ensureDOM() {
@@ -33,51 +119,16 @@
       sel.addEventListener('change', () => {
         const bid = sel.value;
         if (!bid) return;
-        try { sessionStorage.setItem('__tdw_branch_drawer_pref__', bid); } catch { /* empty */ }
-        if (bid === ALL_BRANCHES_VALUE) {
-          // Owner/cross-branch aggregate context — keep Owner Mode (read-only operational writes).
-          try { global.OwnerBranchMode?.exitToOwnerMode?.(); } catch { /* empty */ }
-          global.BranchScope?.setActiveBranchId?.('*');
-          global.notify?.('🌐 عرض كل الفروع (تجميعي) — وضع قراءة للعمليات', 'info');
-        } else {
-          if (!global.BranchScope?.userCanAccessBranch?.(global.currentUser, bid)) {
-            global.notify?.('⛔ لا يمكنك الوصول لهذا الفرع', 'danger');
-            sel.value = global.BranchScope?.getActiveBranchId?.() || bid;
-            return;
-          }
-          global.BranchScope?.setActiveBranchId?.(bid);
-          // Enter branch mode so Owner can write within selected branch when allowed.
-          try {
-            if (global.RolePolicy?.isOrganizationOwner?.(global.currentUser)
-              || String(global.currentUser?.role || '').toLowerCase() === 'owner') {
-              global.OwnerBranchMode?.enterBranchMode?.(bid);
-            }
-          } catch { /* empty */ }
-          global.notify?.('🌿 تم التبديل إلى: ' + (getBranches().find(b => b.id === bid)?.name || bid), 'info');
+        if (!global.BranchScope?.userCanAccessBranch?.(global.currentUser, bid)
+          && bid !== ALL_BRANCHES_VALUE) {
+          global.notify?.('⛔ لا يمكنك الوصول لهذا الفرع', 'danger');
+          sel.value = global.BranchScope?.getActiveBranchId?.() || bid;
+          return;
         }
-        if (typeof global.reloadClientStoreFromDb === 'function') global.reloadClientStoreFromDb();
-        if (typeof global.refreshCaseDerivedViews === 'function') global.refreshCaseDerivedViews();
-        if (typeof global.refreshDashboard === 'function') global.refreshDashboard();
-        if (typeof global.refreshDailyTable === 'function') global.refreshDailyTable();
-        if (typeof global.refreshBookingsTable === 'function') global.refreshBookingsTable();
-        if (typeof global.refreshClientsView === 'function') global.refreshClientsView(false);
-        if (typeof global.refreshInvoicesPage === 'function') global.refreshInvoicesPage(false);
-        if (typeof global.refreshDashboardAlerts === 'function') global.refreshDashboardAlerts();
-        if (typeof global.refreshDoctorsTable === 'function') global.refreshDoctorsTable();
-        if (typeof global.refreshUsersTable === 'function') global.refreshUsersTable();
-        if (typeof global.renderReportsPage === 'function') global.renderReportsPage();
-        if (typeof global.renderOwnerHubPage === 'function') global.renderOwnerHubPage();
-        if (typeof global.showPage === 'function') {
-          try {
-            const active = document.querySelector('.page.active')?.id;
-            if (active) global.showPage(active.replace('Page',''));
-          } catch { /* empty */ }
-        }
+        confirmSwitch(bid, sel);
       });
     }
   }
-
-  const ALL_BRANCHES_VALUE = '__ALL__';
 
   function populate() {
     const sel = document.getElementById('topbar-branch-switcher');
@@ -88,7 +139,9 @@
       || global.RolePolicy?.isOrganizationOwner?.(global.currentUser)
       || String(global.currentUser?.role || '').toLowerCase() === 'owner';
     const visible = scope.includes('*') ? branches : branches.filter(b => scope.includes(b.id));
-    let active = global.BranchScope?.getActiveBranchId?.() || branches[0]?.id;
+    let active = global.BranchContexts?.getOperationalWriteBranch?.()
+      || global.BranchScope?.getActiveBranchId?.()
+      || branches[0]?.id;
     try {
       const pref = sessionStorage.getItem('__tdw_branch_drawer_pref__');
       if (pref) active = pref;
@@ -117,6 +170,8 @@
   global.BranchSwitcher = {
     shouldShow,
     applyVisibility,
-    populate
+    populate,
+    applyBranchSwitch,
+    ALL_BRANCHES_VALUE,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

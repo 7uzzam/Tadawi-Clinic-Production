@@ -168,7 +168,11 @@
       host.innerHTML = '<p class="lic-ws-hint" style="color:#ff8888">' + (e.message || 'فشل تحميل السجلات') + '</p>';
       return;
     }
-    const pkgs = (CL.registries?.package?.packages || []).filter(p => p.visible !== false && p.id !== rec.packageId);
+    const pkgs = (CL.registries?.package?.packages || []).filter(p => {
+      if (!p || p.visible === false || p.id === rec.packageId) return false;
+      return global.PackageRegistryViewer?.isCustomerPackageId?.(p.id)
+        || ['01', '02', '03', '04'].includes(p.id);
+    });
     const opts = pkgs.map(p => `<option value="${p.id}">${p.displayNameAr || p.displayName} (${p.id})</option>`).join('');
     host.innerHTML = `
       <p class="lic-ws-hint">اختر باقة أقل من الحالية (${rec.packageId}). سيتم إنشاء مفتاح جديد.</p>

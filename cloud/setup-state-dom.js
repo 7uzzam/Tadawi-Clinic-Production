@@ -45,10 +45,10 @@
     const hint = qs('#login-setup-hint');
     if (hint) setVisible(hint, state.showLoginBootCta);
 
-    // 2) Login support details (license screen) — ADVANCED_ONLY when READY
+    // 2) Login support details — always visible (collapsed <details>); license/dev access after READY
     const loginSupport = qs('#loginScreen details.login-support-details')
       || qs('.login-support-details');
-    setVisible(loginSupport, !ready || support);
+    setVisible(loginSupport, true);
 
     // 3) Dead drive bootstrap panel — always hidden for customers
     setVisible(qs('#login-drive-bootstrap-panel'), false);

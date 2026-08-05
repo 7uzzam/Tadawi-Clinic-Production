@@ -1,8 +1,8 @@
 {
   "device": "B",
   "role": "activation-secondary-existing",
-  "startedAt": "2026-07-31T07:40:53.632Z",
-  "finishedAt": "2026-07-31T07:40:53.966Z",
+  "startedAt": "2026-08-04T22:36:04.820Z",
+  "finishedAt": "2026-08-04T22:36:04.963Z",
   "ok": true,
   "existingBranchSelect": true,
   "restorePath": true

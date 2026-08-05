@@ -195,7 +195,7 @@
       "branches": 0,
       "maxUsers": 0,
       "price": null,
-      "visible": true,
+      "visible": false,
       "order": 5
     },
     {
@@ -267,5 +267,5 @@
       "order": 10
     }
   ],
-  "registrySig": "36b4d694b7755c2db0137ed04032f379000a6007dea32773eb1aed90711fe5a5"
+  "registrySig": "81c375ee74840b521569550a61ccb742b4dd1562e01cdd671ff198ebbc1667ba"
 }

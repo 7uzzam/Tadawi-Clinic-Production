@@ -44,6 +44,9 @@
         global.DeviceRegistry?.startHeartbeat?.();
       }
       global.BranchLockUI?.maybePromptBranchLock?.();
+      setTimeout(() => {
+        try { global.LegacyBranchMigrationUI?.maybePrompt?.(); } catch { /* empty */ }
+      }, 1200);
 
       if (typeof stopLegacyDriveSync === 'function') stopLegacyDriveSync('Cloud V2 active');
       else if (typeof stopDriveSyncTimers === 'function') {

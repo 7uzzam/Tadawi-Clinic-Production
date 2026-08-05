@@ -28,10 +28,16 @@ check(/downloadedFullBackup:\s*false/.test(mainDiscovery), 'discovery never clai
 check(!/downloadBackup\(/.test(mainDiscovery), 'main discovery must not call downloadBackup');
 check(!/collectBackupFiles/.test(mainDiscovery), 'main discovery must not recurse collectBackupFiles');
 check(/listFolderShallow/.test(mainDiscovery), 'shallow folder listing present');
-check(/DISCOVERY_OVERALL_MS\s*=\s*15000/.test(mainDiscovery), '15s overall discovery budget');
+check(/buildDiscoveryProbeFolders/.test(mainDiscovery) && /Backups\/V2/.test(mainDiscovery),
+  'discovery probes Backups/V2 and expanded folder layouts');
+check(/buildVersionsProbePaths/.test(mainDiscovery), 'discovery probes multiple versions.json paths');
+check(/DISCOVERY_OVERALL_MS\s*=\s*60000/.test(mainDiscovery), '60s default discovery budget');
+check(/PRIORITY_PARALLEL/.test(mainDiscovery), 'parallel priority folder batch');
+check(/emitProgress|backup:discoveryProgress/.test(mainDiscovery + preload), 'discovery progress events');
 check(/discovery_timeout/.test(mainDiscovery), 'timeout error codes present');
 
 check(/discoverAllSources/.test(rendererDiscovery), 'renderer discoverAllSources');
+check(/buildDiscoveryProgressState/.test(rendererDiscovery), 'renderer discovery progress state');
 check(/confirmedCloudRestore/.test(rendererDiscovery), 'renderer confirmedCloudRestore');
 check(/SyncEngine must NOT start during discovery|never start sync during discovery/i.test(rendererDiscovery),
   'renderer forbids SyncEngine during discovery');
@@ -43,7 +49,8 @@ check(/restore_in_flight|discovery_in_flight|stale_discovery|stale_restore/.test
 // --- BootFlow wiring ---
 check(/CloudDataDiscovery/.test(boot), 'BootFlow uses CloudDataDiscovery');
 check(/استعادة هذه البيانات/.test(boot), 'explicit confirm CTA');
-check(/فحص سريع لمصادر البيانات/.test(boot), 'fast discovery status copy');
+check(/onProgress/.test(boot), 'BootFlow discovery progress callback');
+check(/DISCOVERY_TIMEOUT_MS/.test(boot), 'BootFlow uses discovery timeout constant');
 check(!/جارٍ الاستعادة من السحابة\.\.\./.test(boot)
   || /الاستعادة المؤكدة من السحابة/.test(boot),
   'infinite cloud restore loader path replaced / gated');
@@ -60,7 +67,9 @@ check(/ops-ux-restore-wizard\{z-index:100050/.test(boot), 'BootFlow CSS raises r
 // --- IPC / preload / public channel ---
 check(/backup:discoverCloudRestorePoints/.test(preload), 'preload allowlist');
 check(/discoverCloudRestorePoints:/.test(preload), 'preload bridge method');
+check(/onDiscoveryProgress/.test(preload), 'preload discovery progress listener');
 check(/backup:discoverCloudRestorePoints/.test(mainJs), 'main IPC handler');
+check(/branchName/.test(mainJs) && /90000/.test(mainJs), 'main IPC branchName + extended timeout cap');
 check(/backup:discoverCloudRestorePoints/.test(rbac), 'RBAC public channel for BootFlow');
 check(/cloud\/cloud-data-discovery\.js/.test(index), 'index.html loads discovery module');
 check(/getAuthedClient/.test(gdrive) && /resolveFolderPath/.test(gdrive) && /findFileByPath/.test(gdrive),
@@ -68,7 +77,9 @@ check(/getAuthedClient/.test(gdrive) && /resolveFolderPath/.test(gdrive) && /fin
 
 // --- Behavioral unit: withTimeout + shallow discovery helpers ---
 const discovery = require(path.join(root, 'electron/cloud-data-discovery.js'));
-assert.strictEqual(discovery.DISCOVERY_OVERALL_MS, 15000);
+assert.strictEqual(discovery.DISCOVERY_OVERALL_MS, 60000);
+assert.strictEqual(discovery.clampTimeoutMs(120000), 90000);
+assert.strictEqual(discovery.clampTimeoutMs(45000), 45000);
 
 (async () => {
   let timedOut = false;
@@ -79,19 +90,20 @@ assert.strictEqual(discovery.DISCOVERY_OVERALL_MS, 15000);
   }
   check(timedOut, 'withTimeout rejects with DISCOVERY_TIMEOUT');
 
-  // Mocked discover without google — should not throw uncaught
-  // (will fail oauth_status when requiring real google; skip live call)
+  const folders = discovery.buildDiscoveryProbeFolders({ centerId: 'C1', centerName: 'Test Center' });
+  check(folders[0] === 'Backups/V2', 'Backups/V2 probed first');
 
   if (errors.length) {
     console.error('FAIL v2-5.10 cloud discovery/restore');
     errors.forEach((e) => console.error(' -', e));
     process.exit(1);
   }
-  console.log('PASS v2-5.10:cloud-discovery-restore (' + [
+  console.log('PASS v2-5-10:cloud-discovery-restore (' + [
     'fast_discovery',
     'no_full_download',
     'confirm_cta',
-    'timeout',
+    'timeout_60s',
+    'progress',
     'z_index',
     'ipc',
   ].join(', ') + ')');

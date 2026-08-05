@@ -1,5 +1,5 @@
 {
-  "at": "2026-07-30T23:41:43.424Z",
+  "at": "2026-08-04T22:36:02.338Z",
   "paths": [
     "cancel mid restore → RestoreWizard.cancel → cancelled",
     "setRatio(1) without markComplete → percent stays <100",

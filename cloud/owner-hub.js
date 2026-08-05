@@ -781,9 +781,8 @@
       </div>
       <div class="card" style="margin-bottom:14px;padding:16px">
         <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <span>🌿 إدارة الفروع (دعم متقدم)</span>
-          <button type="button" class="btn btn-primary btn-sm" onclick="CenterSetupUI.open('manage')">➕ إدارة فروع وأجهزة</button>
-          ${ownerCanManage ? '<button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.promptAddBranch()">➕ Add Branch</button><button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.exitToOwnerMode()">↩️ Owner Mode</button>' : ''}
+          <span>🌿 إدارة الفروع</span>
+          ${ownerCanManage ? '<button type="button" class="btn btn-secondary btn-sm" onclick="OwnerHub.promptAddBranch()">➕ إضافة فرع</button><button type="button" class="btn btn-ghost btn-sm" onclick="OwnerHub.exitToOwnerMode()">↩️ Owner Mode</button>' : ''}
         </div>
         <p class="oh-muted" style="margin:0 0 10px"><strong>Owner Mode</strong> = نظرة عامة لكل الفروع (قراءة). <strong>Branch Mode</strong> = الدخول لفرع للكتابة اليومية. إنشاء الفروع للمالك فقط.</p>
         <div class="oh-branch-grid">${branchCards}</div>

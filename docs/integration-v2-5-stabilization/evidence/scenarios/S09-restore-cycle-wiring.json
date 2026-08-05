@@ -2,7 +2,7 @@
   "id": "S09-restore-cycle-wiring",
   "title": "Install→Google→License→Org→Branch→Restore→Dashboard wiring present",
   "result": "PASS",
-  "ms": 7,
+  "ms": 5,
   "evidence": {
     "cycleWiring": true
   }

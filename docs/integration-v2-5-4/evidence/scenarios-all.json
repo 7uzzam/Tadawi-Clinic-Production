@@ -1,7 +1,7 @@
 {
   "phase": "V2-5.4",
-  "startedAt": "2026-07-30T22:52:27.586Z",
-  "finishedAt": "2026-07-30T22:52:27.652Z",
+  "startedAt": "2026-08-04T22:35:52.273Z",
+  "finishedAt": "2026-08-04T22:35:52.344Z",
   "host": {
     "platform": "linux",
     "arch": "x64",
@@ -15,7 +15,7 @@
       "id": "R01-inventory-snapshot",
       "title": "RBAC inventory snapshot complete",
       "result": "PASS",
-      "ms": 29,
+      "ms": 34,
       "evidence": {
         "roles": 6,
         "perms": 7,
@@ -45,7 +45,7 @@
       "id": "R04-scoped-repo-and-export",
       "title": "Scoped repository + export path wiring",
       "result": "PASS",
-      "ms": 4,
+      "ms": 6,
       "evidence": {
         "exportGuarded": true,
         "scoped": true

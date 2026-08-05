@@ -1,8 +1,8 @@
 {
   "device": "C",
   "role": "stabilization-tertiary-restore-uat",
-  "startedAt": "2026-07-31T05:12:51.701Z",
-  "finishedAt": "2026-07-31T05:12:52.043Z",
+  "startedAt": "2026-08-04T22:36:04.153Z",
+  "finishedAt": "2026-08-04T22:36:04.276Z",
   "ok": true,
   "restorePath": [
     "Install",

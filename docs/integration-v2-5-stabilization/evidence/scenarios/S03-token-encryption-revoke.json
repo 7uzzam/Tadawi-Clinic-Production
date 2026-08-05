@@ -2,7 +2,7 @@
   "id": "S03-token-encryption-revoke",
   "title": "Token encryption + disconnect revoke",
   "result": "PASS",
-  "ms": 1,
+  "ms": 0,
   "evidence": {
     "encrypted": true,
     "revoke": true

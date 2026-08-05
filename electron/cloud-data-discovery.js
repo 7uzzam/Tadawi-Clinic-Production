@@ -6,8 +6,16 @@
 
 const drivePaths = require('./cloud-drive-paths');
 
-const DISCOVERY_OVERALL_MS = 15000;
-const PER_REQUEST_MS = 10000;
+const DISCOVERY_OVERALL_MS = 60000;
+const DISCOVERY_MAX_MS = 90000;
+const PER_REQUEST_MS = 8000;
+const PRIORITY_PARALLEL = 4;
+
+function clampTimeoutMs(ms) {
+  const n = Number(ms);
+  if (!Number.isFinite(n)) return DISCOVERY_OVERALL_MS;
+  return Math.min(Math.max(Math.floor(n), 1000), DISCOVERY_MAX_MS);
+}
 
 function withTimeout(promise, ms, label) {
   let timer;
@@ -50,6 +58,93 @@ function pushStep(trace, name, startMs, result) {
   });
 }
 
+function isBackupArtifact(name) {
+  const n = String(name || '');
+  if (/\.tdw$/i.test(n)) return true;
+  if (/^Tadawi-Backup-V2/i.test(n)) return true;
+  if (drivePaths.isDbBackupName(n)) return true;
+  if (/^Backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}\.zip$/i.test(n)) return true;
+  return false;
+}
+
+/**
+ * All known backup folder layouts (V1 legacy, V2 root, center name/id, branch Backup).
+ * Backup V2 uploads to `Backups/V2/` at Drive root — probed first.
+ */
+function buildDiscoveryProbeFolders(options = {}) {
+  const centerId = String(options.centerId || '').trim();
+  const centerName = String(options.centerName || '').trim();
+  const branchId = String(options.branchId || '').trim();
+  const branchName = String(options.branchName || '').trim();
+  const V2 = drivePaths.DRIVE_V2_ROOT;
+  const san = (s) => {
+    const v = String(s || '').trim();
+    return v ? drivePaths.sanitizeCenter(v) : '';
+  };
+  const folders = [];
+  const add = (p) => {
+    const s = String(p || '').replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+    if (s && !folders.includes(s)) folders.push(s);
+  };
+
+  add('Backups/V2');
+  add('Backups');
+
+  const centerKeys = [...new Set([centerName, centerId].map(san).filter(Boolean))];
+  for (const key of centerKeys) {
+    add(`${V2}/${key}/Backups/V2`);
+    add(`${V2}/${key}/Backups/Auto`);
+    add(`${V2}/${key}/Backups/Manual`);
+    add(`${V2}/${key}/Backups`);
+    for (const bn of [...new Set([branchName, branchId].map(san).filter(Boolean))]) {
+      add(`${V2}/${key}/Branches/${bn}/Backup`);
+    }
+  }
+
+  if (centerId) {
+    const cid = san(centerId);
+    add(`${V2}/centers/${cid}/Backups/V2`);
+    add(`${V2}/centers/${cid}/Backups/Auto`);
+    add(`${V2}/centers/${cid}/Backups/Manual`);
+    add(`${V2}/centers/${cid}/Backups`);
+    if (branchId) add(`${V2}/centers/${cid}/branches/${san(branchId)}/Backup`);
+    add(drivePaths.buildV2Path(centerId, 'Backups', 'V2'));
+    add(drivePaths.buildV2Path(centerId, 'Backups', 'Auto'));
+    add(drivePaths.buildV2Path(centerId, 'Backups', 'Manual'));
+    add(drivePaths.buildV2Path(centerId, 'Backups'));
+  }
+
+  if (centerName) {
+    add(`${drivePaths.DRIVE_APP_FOLDER}/${san(centerName)}`);
+  }
+
+  return folders;
+}
+
+function buildVersionsProbePaths(options = {}) {
+  const centerId = String(options.centerId || '').trim();
+  const centerName = String(options.centerName || '').trim();
+  const branchId = String(options.branchId || '').trim();
+  const branchName = String(options.branchName || '').trim();
+  const V2 = drivePaths.DRIVE_V2_ROOT;
+  const san = (s) => {
+    const v = String(s || '').trim();
+    return v ? drivePaths.sanitizeCenter(v) : '';
+  };
+  const paths = new Set();
+  if (centerId) paths.add(drivePaths.buildV2SyncVersionsPath(centerId));
+  for (const key of [...new Set([centerName, centerId].map(san).filter(Boolean))]) {
+    paths.add(`${V2}/${key}/Sync/versions.json`);
+    for (const bn of [...new Set([branchName, branchId].map(san).filter(Boolean))]) {
+      paths.add(`${V2}/${key}/Branches/${bn}/versions.json`);
+    }
+  }
+  if (centerId && branchId) {
+    paths.add(`${V2}/centers/${san(centerId)}/branches/${san(branchId)}/versions.json`);
+  }
+  return [...paths];
+}
+
 /**
  * Shallow list of files in ONE folder (no recursion).
  */
@@ -89,7 +184,7 @@ async function listFolderShallow(googleDrive, folderPath, { pageSize = 50, maxPa
         modifiedAt: f.modifiedTime || null,
         md5: f.md5Checksum || null,
         isMain: drivePaths.isMainBackupName(f.name),
-        isBackupV2: /\.tdw$/i.test(f.name) || drivePaths.isDbBackupName(f.name),
+        isBackupV2: isBackupArtifact(f.name),
       });
     }
     pageToken = res.nextPageToken;
@@ -117,6 +212,18 @@ async function probeFileMeta(googleDrive, remotePath) {
   };
 }
 
+function finalizeRestorePoints(out) {
+  out.restorePoints.sort((a, b) => String(b.modifiedAt || '').localeCompare(String(a.modifiedAt || '')));
+  const newestBackup = out.restorePoints.find((p) => p.kind === 'backup_file') || null;
+  const newestAny = out.restorePoints[0] || null;
+  out.newest = newestBackup || newestAny;
+  return out.newest;
+}
+
+function formatTimeoutSeconds(ms) {
+  return Math.round(ms / 1000);
+}
+
 /**
  * Discover restore points for a center/branch without downloading payloads.
  */
@@ -126,13 +233,16 @@ async function discoverCloudRestorePoints(options = {}) {
   const centerId = String(options.centerId || '').trim();
   const branchId = String(options.branchId || '').trim();
   const centerName = String(options.centerName || '').trim();
-  const overallMs = Math.min(Number(options.timeoutMs) || DISCOVERY_OVERALL_MS, 20000);
+  const branchName = String(options.branchName || '').trim();
+  const overallMs = clampTimeoutMs(options.timeoutMs);
+  const progressSender = options.progressSender || null;
 
   const out = {
     ok: true,
     mode: 'fast_discovery',
     centerId: centerId || null,
     branchId: branchId || null,
+    branchName: branchName || null,
     centerName: centerName || null,
     googleConnected: false,
     restorePoints: [],
@@ -141,6 +251,7 @@ async function discoverCloudRestorePoints(options = {}) {
     message: null,
     durationMs: 0,
     timedOut: false,
+    partialScan: false,
     downloadedBytes: 0,
     downloadedFullBackup: false,
     syncEngineStarted: false,
@@ -148,6 +259,30 @@ async function discoverCloudRestorePoints(options = {}) {
   };
 
   const overallDeadline = Date.now() + overallMs;
+  let foldersProbed = 0;
+
+  function emitProgress(extra = {}) {
+    const elapsedMs = Date.now() - trace.startedMs;
+    const payload = {
+      phase: extra.phase || 'cloud',
+      folder: extra.folder || null,
+      foldersDone: extra.foldersDone != null ? extra.foldersDone : foldersProbed,
+      foldersTotal: extra.foldersTotal || null,
+      foundCount: out.restorePoints.length,
+      elapsedMs,
+      budgetMs: overallMs,
+      percent: extra.percent != null
+        ? extra.percent
+        : Math.min(95, Math.round((elapsedMs / overallMs) * 90)),
+      label: extra.label || 'فحص Google Drive (بيانات وصفية فقط)',
+    };
+    if (typeof options.onProgress === 'function') {
+      try { options.onProgress(payload); } catch { /* observer only */ }
+    }
+    if (progressSender && typeof progressSender.send === 'function' && !progressSender.isDestroyed?.()) {
+      try { progressSender.send('backup:discoveryProgress', payload); } catch { /* observer only */ }
+    }
+  }
 
   async function step(name, fn, budgetMs = PER_REQUEST_MS) {
     const remaining = overallDeadline - Date.now();
@@ -171,7 +306,58 @@ async function discoverCloudRestorePoints(options = {}) {
     }
   }
 
+  const seen = new Set();
+
+  function ingestListedItems(listed, folder) {
+    let added = 0;
+    for (const item of listed.items || []) {
+      if (!isBackupArtifact(item.name)) continue;
+      if (seen.has(item.id || item.path)) continue;
+      seen.add(item.id || item.path);
+      out.restorePoints.push({
+        kind: 'backup_file',
+        source: 'cloud_backup',
+        id: item.id,
+        name: item.name,
+        path: item.path,
+        sizeBytes: item.size || 0,
+        modifiedAt: item.modifiedAt,
+        md5: item.md5,
+        centerId,
+        branchId: branchId || null,
+        schemaVersion: null,
+        revision: null,
+        attachmentCount: null,
+        recordCount: null,
+        validation: 'metadata_ok',
+        probedFolder: folder,
+      });
+      added += 1;
+    }
+    return added;
+  }
+
+  async function probeBackupFolder(folder, foldersTotal) {
+    if (Date.now() >= overallDeadline) return false;
+    emitProgress({ phase: 'folders', folder, foldersTotal, label: `فحص مجلد: ${folder}` });
+    try {
+      const listed = await step(`list_shallow:${folder}`, () => listFolderShallow(googleDrive, folder, {
+        pageSize: 40,
+        maxPages: 1,
+      }), PER_REQUEST_MS);
+      ingestListedItems(listed, folder);
+    } catch (err) {
+      if (err.code === 'DISCOVERY_TIMEOUT') throw err;
+      // folder missing / access — continue other probes
+    }
+    foldersProbed += 1;
+    emitProgress({ phase: 'folders', folder, foldersDone: foldersProbed, foldersTotal });
+    return true;
+  }
+
   try {
+    emitProgress({ phase: 'oauth', label: 'التحقق من اتصال Google…', percent: 2 });
+
     // 1) Google connection / token
     const status = await step('oauth_status', async () => {
       const s = await googleDrive.getStatus();
@@ -205,98 +391,105 @@ async function discoverCloudRestorePoints(options = {}) {
       return out;
     }
 
-    // 2) Shallow backup folder probes (Auto + Manual) — NO recursion, NO download
-    const backupFolders = [
-      drivePaths.buildV2Path(centerId, 'Backups', 'Auto'),
-      drivePaths.buildV2Path(centerId, 'Backups', 'Manual'),
-      drivePaths.buildV2Path(centerId, 'Backups'),
-    ];
-    if (centerName) {
-      backupFolders.push(`${drivePaths.DRIVE_APP_FOLDER}/${drivePaths.sanitizeCenter(centerName)}`);
+    // 2) Shallow backup folder probes — priority batch in parallel, then sequential
+    const backupFolders = buildDiscoveryProbeFolders({
+      centerId, centerName, branchId, branchName,
+    });
+    out.probedFolders = backupFolders.slice();
+    const foldersTotal = backupFolders.length;
+    const priorityBatch = backupFolders.slice(0, PRIORITY_PARALLEL);
+    const remainingFolders = backupFolders.slice(PRIORITY_PARALLEL);
+
+    emitProgress({
+      phase: 'folders',
+      foldersDone: 0,
+      foldersTotal,
+      label: `فحص ${foldersTotal} مساراً معروفاً على Drive…`,
+      percent: 8,
+    });
+
+    await Promise.all(priorityBatch.map((folder) => probeBackupFolder(folder, foldersTotal)));
+
+    const foundInPriority = out.restorePoints.some((p) => p.kind === 'backup_file');
+    if (!foundInPriority) {
+      for (const folder of remainingFolders) {
+        if (Date.now() >= overallDeadline) {
+          out.partialScan = foldersProbed < foldersTotal;
+          break;
+        }
+        await probeBackupFolder(folder, foldersTotal);
+      }
+    } else {
+      foldersProbed = Math.max(foldersProbed, priorityBatch.length);
+      out.partialScan = remainingFolders.length > 0;
     }
 
-    const seen = new Set();
-    for (const folder of backupFolders) {
-      if (Date.now() >= overallDeadline) break;
+    // 3) Sync checkpoint / versions.json metadata only (file meta, not full table sync)
+    emitProgress({ phase: 'versions', label: 'فحص نقاط المزامنة (versions.json)…', percent: 85 });
+    const versionsPaths = buildVersionsProbePaths({
+      centerId, centerName, branchId, branchName,
+    });
+    for (const versionsPath of versionsPaths) {
+      if (Date.now() >= overallDeadline) {
+        out.partialScan = true;
+        break;
+      }
       try {
-        const listed = await step(`list_shallow:${folder}`, () => listFolderShallow(googleDrive, folder, {
-          pageSize: 40,
-          maxPages: 1,
-        }), PER_REQUEST_MS);
-        for (const item of listed.items || []) {
-          if (!item.isBackupV2 && !/\.tdw$/i.test(item.name) && !drivePaths.isDbBackupName(item.name)) continue;
-          if (seen.has(item.id || item.path)) continue;
-          seen.add(item.id || item.path);
+        const meta = await step(`versions_meta:${versionsPath}`, () => probeFileMeta(googleDrive, versionsPath), PER_REQUEST_MS);
+        if (meta.found) {
           out.restorePoints.push({
-            kind: 'backup_file',
-            source: 'cloud_backup',
-            id: item.id,
-            name: item.name,
-            path: item.path,
-            sizeBytes: item.size || 0,
-            modifiedAt: item.modifiedAt,
-            md5: item.md5,
+            kind: 'sync_checkpoint',
+            source: 'cloud_sync',
+            id: meta.item.id,
+            name: meta.item.name,
+            path: meta.item.path,
+            sizeBytes: meta.item.size || 0,
+            modifiedAt: meta.item.modifiedAt,
+            md5: meta.item.md5,
             centerId,
             branchId: branchId || null,
             schemaVersion: null,
-            revision: null,
+            revision: 'versions.json',
             attachmentCount: null,
             recordCount: null,
             validation: 'metadata_ok',
           });
+          break;
         }
       } catch (err) {
         if (err.code === 'DISCOVERY_TIMEOUT') throw err;
-        // folder missing / access — continue other probes
       }
     }
 
-    // 3) Sync checkpoint / versions.json metadata only (file meta, not full table sync)
-    const versionsPath = drivePaths.buildV2SyncVersionsPath(centerId);
-    try {
-      const meta = await step('versions_meta', () => probeFileMeta(googleDrive, versionsPath), PER_REQUEST_MS);
-      if (meta.found) {
-        out.restorePoints.push({
-          kind: 'sync_checkpoint',
-          source: 'cloud_sync',
-          id: meta.item.id,
-          name: meta.item.name,
-          path: meta.item.path,
-          sizeBytes: meta.item.size || 0,
-          modifiedAt: meta.item.modifiedAt,
-          md5: meta.item.md5,
-          centerId,
-          branchId: branchId || null,
-          schemaVersion: null,
-          revision: 'versions.json',
-          attachmentCount: null,
-          recordCount: null,
-          validation: 'metadata_ok',
-        });
-      }
-    } catch (err) {
-      if (err.code === 'DISCOVERY_TIMEOUT') throw err;
-    }
-
-    // Prefer newest backup_file; else sync checkpoint
-    out.restorePoints.sort((a, b) => String(b.modifiedAt || '').localeCompare(String(a.modifiedAt || '')));
-    const newestBackup = out.restorePoints.find((p) => p.kind === 'backup_file') || null;
-    const newestAny = out.restorePoints[0] || null;
-    out.newest = newestBackup || newestAny;
+    finalizeRestorePoints(out);
+    emitProgress({ phase: 'done', percent: 100, label: 'اكتمل الفحص' });
 
     if (!out.newest) {
-      out.status = 'not_found';
-      out.message = 'لم يتم العثور على بيانات سحابية لهذا الفرع.';
+      out.status = out.partialScan ? 'timeout' : 'not_found';
+      out.message = out.partialScan
+        ? `انتهى وقت الفحص (${formatTimeoutSeconds(overallMs)} ث) قبل اكتمال جميع المسارات. أعد المحاولة أو اختر مصدراً آخر.`
+        : 'لم يتم العثور على نسخ سحابية على Drive لهذا المركز. تأكد من نفس حساب Google قبل إعادة التثبيت، أو اختر «ملف Backup» إذا لديك نسخة محلية (.tdw).';
+      if (out.partialScan) out.timedOut = true;
     } else {
       out.status = 'ready';
-      out.message = 'وُجدت نقطة استعادة سحابية — أكّد قبل التنزيل.';
+      out.message = out.partialScan
+        ? `وُجدت نقطة استعادة سحابية (فحص جزئي خلال ${formatTimeoutSeconds(overallMs)}ث) — أكّد قبل التنزيل.`
+        : 'وُجدت نقطة استعادة سحابية — أكّد قبل التنزيل.';
     }
   } catch (err) {
+    finalizeRestorePoints(out);
     if (err.code === 'DISCOVERY_TIMEOUT') {
       out.timedOut = true;
-      out.status = 'timeout';
-      out.message = 'تجاوز فحص السحابة المهلة (15 ثانية). أعد المحاولة أو اختر مصدراً آخر.';
-      out.ok = true; // discovery completed with timeout outcome — not a crash
+      out.partialScan = true;
+      const sec = formatTimeoutSeconds(overallMs);
+      if (out.newest) {
+        out.status = 'ready';
+        out.message = `وُجدت نقطة استعادة سحابية — تجاوز الفحص المهلة (${sec} ث) لكن النتائج متاحة للتأكيد.`;
+      } else {
+        out.status = 'timeout';
+        out.message = `تجاوز فحص السحابة المهلة (${sec} ثانية). أعد المحاولة أو اختر مصدراً آخر.`;
+      }
+      out.ok = true;
     } else {
       out.ok = false;
       out.status = 'error';
@@ -313,9 +506,14 @@ async function discoverCloudRestorePoints(options = {}) {
 
 module.exports = {
   DISCOVERY_OVERALL_MS,
+  DISCOVERY_MAX_MS,
   PER_REQUEST_MS,
+  clampTimeoutMs,
   withTimeout,
   listFolderShallow,
   probeFileMeta,
+  isBackupArtifact,
+  buildDiscoveryProbeFolders,
+  buildVersionsProbePaths,
   discoverCloudRestorePoints,
 };

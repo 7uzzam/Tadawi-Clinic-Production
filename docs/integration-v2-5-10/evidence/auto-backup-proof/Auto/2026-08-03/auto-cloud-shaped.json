@@ -1,6 +1,6 @@
 {
   "schema": "tdw-backup-proof-v1",
-  "at": "2026-08-03T14:07:19.984Z",
+  "at": "2026-08-04T22:36:04.639Z",
   "users": [
     {
       "id": "u-owner",
@@ -8,6 +8,6 @@
       "credentialRevision": 2
     }
   ],
-  "marker": "c0a456e33789db8c",
+  "marker": "fd00dab6ae7a211c",
   "channel": "cloud_auto"
 }

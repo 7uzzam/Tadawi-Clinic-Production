@@ -1,8 +1,8 @@
 {
   "device": "B",
   "role": "race-and-transfer-uat",
-  "startedAt": "2026-07-31T07:42:39.885Z",
-  "finishedAt": "2026-07-31T07:42:40.229Z",
+  "startedAt": "2026-08-04T22:35:51.964Z",
+  "finishedAt": "2026-08-04T22:35:52.113Z",
   "host": {
     "platform": "linux",
     "arch": "x64",

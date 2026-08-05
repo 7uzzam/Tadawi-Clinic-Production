@@ -1,8 +1,8 @@
 {
   "device": "A",
   "role": "stabilization-primary-uat",
-  "startedAt": "2026-07-31T05:12:51.701Z",
-  "finishedAt": "2026-07-31T05:12:52.043Z",
+  "startedAt": "2026-08-04T22:36:04.153Z",
+  "finishedAt": "2026-08-04T22:36:04.276Z",
   "platform": "linux",
   "ok": true,
   "unitStatus": 0,
@@ -99,5 +99,5 @@
       "mode": "harness-structural"
     }
   ],
-  "notes": "Windows artifacts present — cycle wiring + release bits validated"
+  "notes": "Dist deferred on this host — cycle validated via automated harness; GHA Windows rebuild required for install bytes"
 }

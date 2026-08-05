@@ -6,7 +6,7 @@
 (function (global) {
   'use strict';
 
-  const DISCOVERY_TIMEOUT_MS = 15000;
+  const DISCOVERY_TIMEOUT_MS = 60000;
   const NO_PROGRESS_WATCHDOG_MS = 30000;
 
   const RESTORE_STAGES = [
@@ -69,7 +69,10 @@
       || lic?.branchId
       || null;
     const centerName = lic?.centerName || lic?.organizationName || global.DeviceConfig?.load?.()?.centerName || '';
-    return { lic, centerId, branchId, centerName };
+    const branchName = (lic?.branches || []).find((b) => b && b.id === branchId)?.name
+      || global.DeviceConfig?.load?.()?.branchName
+      || '';
+    return { lic, centerId, branchId, branchName, centerName };
   }
 
   function probeLocalDatabase() {
@@ -158,6 +161,41 @@
       try { global.SyncEngine.stop(); } catch { /* empty */ }
     }
 
+    const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
+    const timeoutMs = options.timeoutMs || DISCOVERY_TIMEOUT_MS;
+    const emitDiscovery = (snap) => {
+      if (!onProgress) return;
+      try { onProgress(snap); } catch { /* observer only */ }
+    };
+
+    emitDiscovery(buildDiscoveryProgressState({
+      label: 'بدء الفحص — سحابة / محلي / نسخ',
+      elapsedMs: 0,
+      budgetMs: timeoutMs,
+      percent: 3,
+    }));
+
+    const tick = setInterval(() => {
+      if (opId !== discoveryOpId) return;
+      emitDiscovery(buildDiscoveryProgressState({
+        label: 'جارٍ الفحص…',
+        elapsedMs: Date.now() - started,
+        budgetMs: timeoutMs,
+      }));
+    }, 400);
+
+    const electronBackup = global.cuppingElectron?.backup || global.tadawiElectron?.backup || null;
+    if (electronBackup?.onDiscoveryProgress) {
+      electronBackup.onDiscoveryProgress((payload) => {
+        if (opId !== discoveryOpId) return;
+        emitDiscovery(buildDiscoveryProgressState({
+          ...payload,
+          elapsedMs: payload.elapsedMs || (Date.now() - started),
+          budgetMs: payload.budgetMs || timeoutMs,
+        }));
+      });
+    }
+
     const cloudPromise = (async () => {
       const b = bridge();
       if (!b?.discoverCloudRestorePoints) {
@@ -179,8 +217,9 @@
       return b.discoverCloudRestorePoints({
         centerId: identity.centerId,
         branchId: identity.branchId,
+        branchName: identity.branchName,
         centerName: identity.centerName,
-        timeoutMs: options.timeoutMs || DISCOVERY_TIMEOUT_MS,
+        timeoutMs,
       });
     })();
 
@@ -197,6 +236,15 @@
         Promise.resolve().then(probeLocalDatabase),
         probeLocalBackups(),
       ]);
+
+      clearInterval(tick);
+      emitDiscovery(buildDiscoveryProgressState({
+        label: 'اكتمل الفحص',
+        elapsedMs: Date.now() - started,
+        budgetMs: timeoutMs,
+        percent: 100,
+        foundCount: cloud?.restorePoints?.length || 0,
+      }));
 
       if (opId !== discoveryOpId) {
         return { ok: false, error: 'stale_discovery', ignored: true };
@@ -224,12 +272,37 @@
       };
       lastDiscovery = result;
       return result;
+    } catch (err) {
+      clearInterval(tick);
+      throw err;
     } finally {
+      clearInterval(tick);
       if (opId === discoveryOpId) {
         discoveryLock = false;
         if (activeAbort === abort) activeAbort = null;
       }
     }
+  }
+
+  function buildDiscoveryProgressState(extra = {}) {
+    const budgetMs = extra.budgetMs || DISCOVERY_TIMEOUT_MS;
+    const elapsedMs = extra.elapsedMs || 0;
+    const percent = extra.percent != null
+      ? extra.percent
+      : Math.min(92, Math.round((elapsedMs / budgetMs) * 88));
+    return {
+      phase: extra.phase || 'discovery',
+      stageLabel: extra.label || 'فحص مصادر البيانات',
+      stageIndex: extra.foldersDone || 0,
+      stageCount: extra.foldersTotal || null,
+      percent,
+      elapsedMs,
+      lastActivity: extra.folder
+        ? `Drive: ${extra.folder}`
+        : (extra.label || 'فحص بيانات وصفية — بلا تنزيل'),
+      foundCount: extra.foundCount || 0,
+      budgetMs,
+    };
   }
 
   function buildProgressState(stageId, extra = {}) {
@@ -411,6 +484,7 @@
     discoverAllSources,
     confirmedCloudRestore,
     buildProgressState,
+    buildDiscoveryProgressState,
     formatBytes,
     formatWhen,
     cancelDiscovery,
