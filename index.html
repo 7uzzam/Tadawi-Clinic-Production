@@ -5449,7 +5449,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <button class="btn btn-ghost btn-sm" onclick="exportToday()">📥 تصدير CSV</button>
           <button class="btn btn-ghost btn-sm btn-print-a4" onclick="printToday()" title="معاينة كشف حالات اليوم قبل الطباعة">👁️ معاينة كشف اليوم</button>
           <button class="btn btn-ghost btn-sm btn-print-a4" data-feature="rep_zreport" onclick="printZReport()">Z-Report A4</button>
-          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="printDailyThermal()">فاتورة الدخل الحراري</button>
+          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="previewDailyThermal()">👁️ معاينة الدخل الحراري</button>
         </div>
         </div>
       </div>
@@ -5635,7 +5635,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <button class="btn btn-primary btn-sm" onclick="generateMonthlyReport()">📊 عرض</button>
           <button class="btn btn-accent btn-sm btn-print-a4" onclick="exportReport()" title="معاينة التقرير الشهري قبل الطباعة">👁️ معاينة التقرير الشهري</button>
           <button class="btn btn-primary btn-sm btn-print-a4" data-feature="rep_archive_a4" onclick="MonthlyArchive.openModal()">📂 أرشيف الشهر A4</button>
-          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="printThermalSummary()" data-feature="rep_thermal_period">فاتورة حرارية للفترة</button>
+          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="previewThermalSummary()" data-feature="rep_thermal_period">👁️ معاينة حرارية للفترة</button>
         </div>
       </div>
 
@@ -19350,7 +19350,7 @@ window.previewDailyThermal = previewDailyThermal;
 async function printDailyThermal() {
   const html = buildDailyThermalHtml();
   if (!html) { notify('⚠️ لا توجد حالات اليوم', 'danger'); return; }
-  await printThermalDoc(html, '🖨️ تم إرسال فاتورة الدخل اليومي للطباعة', { thermal: true, title: 'فاتورة الدخل اليومي' });
+  await printThermalDoc(html, '🖨️ تم إرسال فاتورة الدخل اليومي للطباعة', { skipPreview: true });
 }
 
 function changePassword() {
@@ -20378,36 +20378,21 @@ function configureReceiptModalActions(scope) {
   });
 }
 
-function showThermalReceiptPreview(html, title, options) {
-  options = options || {};
+function showThermalReceiptPreview(html, title) {
   if (!html) {
     notify('⚠️ لا يوجد محتوى للمعاينة', 'danger');
     return { ok: false };
   }
-  window._currentReceiptCaseId = options.caseId || null;
+  window._currentReceiptCaseId = null;
   syncThermalPreviewCss();
-  const wrapped = typeof wrapThermalReceiptHtml === 'function' ? wrapThermalReceiptHtml(html) : html;
-  document.getElementById('receiptContent').innerHTML = wrapped;
+  document.getElementById('receiptContent').innerHTML = typeof wrapThermalReceiptHtml === 'function'
+    ? wrapThermalReceiptHtml(html) : html;
   const titleEl = document.querySelector('#receiptModal .modal-title');
   if (titleEl) titleEl.textContent = title ? `🧾 ${title}` : '🧾 معاينة فاتورة حرارية';
-  configureReceiptModalActions(options.caseId ? 'case' : 'report');
-  if (options.caseId) {
-    const c = cases.find((x) => x.id === options.caseId);
-    const waBtn = document.getElementById('receiptWABtn');
-    if (waBtn) {
-      waBtn.style.display = c?.phone ? '' : 'none';
-      if (c?.phone) waBtn.onclick = () => sendReceiptWhatsApp(c.id);
-    }
-    const invOn = typeof isInvoiceSystemEnabled !== 'function' || isInvoiceSystemEnabled();
-    document.querySelectorAll('.invoice-system-action').forEach((el) => {
-      if (el.id === 'receiptWABtn' && !c?.phone) return;
-      el.classList.toggle('invoice-system-hidden', !invOn);
-    });
-  } else {
-    document.querySelectorAll('.invoice-system-action').forEach((el) => {
-      el.classList.remove('invoice-system-hidden');
-    });
-  }
+  configureReceiptModalActions('report');
+  document.querySelectorAll('.invoice-system-action').forEach((el) => {
+    el.classList.remove('invoice-system-hidden');
+  });
   document.getElementById('receiptModal').classList.add('open');
   return { ok: true, mode: 'receipt_modal' };
 }
@@ -20420,7 +20405,23 @@ function showReceipt(caseId) {
     const primary = cases.find(x => x.sharedSessionId === c.sharedSessionId && x.sharedRole === 'primary');
     if (primary) c = primary;
   }
-  showThermalReceiptPreview(buildReceiptHTML(c), formatInvoiceDisplay(c.invoice), { caseId: c.id });
+  window._currentReceiptCaseId = c.id;
+  syncThermalPreviewCss();
+  document.getElementById('receiptContent').innerHTML = buildReceiptHTML(c);
+  const titleEl = document.querySelector('#receiptModal .modal-title');
+  if (titleEl) titleEl.textContent = `🧾 ${formatInvoiceDisplay(c.invoice)}`;
+  configureReceiptModalActions('case');
+  const waBtn = document.getElementById('receiptWABtn');
+  if (waBtn) {
+    waBtn.style.display = c.phone ? '' : 'none';
+    if (c.phone) waBtn.onclick = () => sendReceiptWhatsApp(c.id);
+  }
+  const invOn = typeof isInvoiceSystemEnabled !== 'function' || isInvoiceSystemEnabled();
+  document.querySelectorAll('.invoice-system-action').forEach(el => {
+    if (el.id === 'receiptWABtn' && !c.phone) return;
+    el.classList.toggle('invoice-system-hidden', !invOn);
+  });
+  document.getElementById('receiptModal').classList.add('open');
 }
 
 function exportReceiptPdfFromModal() {
@@ -20462,7 +20463,7 @@ function closeReceiptModal() {
 async function printReceiptNow(silent) {
   const content = document.getElementById('receiptContent').innerHTML;
   if (!content) { notify('⚠️ لا توجد فاتورة للطباعة', 'danger'); return; }
-  await printThermalDoc(content, silent ? null : '🖨️ تم إرسال الفاتورة للطباعة');
+  await printThermalDoc(content, silent ? null : '🖨️ تم إرسال الفاتورة للطباعة', { skipPreview: true });
   const c = window._currentReceiptCaseId ? cases.find(x => x.id === window._currentReceiptCaseId) : null;
   logHardwareEvent('طباعة فاتورة', c ? `رقم ${c.invoice}` : 'من المعاينة', false);
   if (c && shouldOpenDrawerForCase(c, 'print')) {
@@ -22520,7 +22521,7 @@ function printSalesReport() {
 async function printThermalSummary() {
   const html = buildThermalSummaryHtml();
   if (!html) return;
-  await printThermalDoc(html, '🖨️ تم إرسال ملخص الفترة الحراري للطباعة', { thermal: true, title: 'ملخص الفترة — حراري' });
+  await printThermalDoc(html, '🖨️ تم إرسال ملخص الفترة الحراري للطباعة', { skipPreview: true });
 }
 
 function buildThermalSummaryHtml() {

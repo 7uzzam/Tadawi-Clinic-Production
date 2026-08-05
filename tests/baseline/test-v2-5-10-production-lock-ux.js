@@ -32,12 +32,14 @@ check(/id="bk-v2-pass"[\s\S]*display:none/.test(indexSrc) || /aria-hidden="true"
 
 check(/parseISODateLocal/.test(indexSrc) && /recordMatchesMonth/.test(indexSrc),
   'local ISO date parsing for reports');
-check(/previewThermalSummary/.test(indexSrc) && /previewDailyThermal/.test(indexSrc),
-  'thermal preview helpers present');
+check(/previewDailyThermal/.test(indexSrc) && /previewThermalSummary/.test(indexSrc),
+  'thermal preview buttons wired');
+check(/onclick="previewDailyThermal\(\)"/.test(indexSrc), 'daily thermal uses preview button');
+check(/onclick="previewThermalSummary\(\)"/.test(indexSrc), 'period thermal uses preview button');
 check(/showThermalReceiptPreview/.test(indexSrc) && /receiptModal/.test(indexSrc),
   'thermal preview uses receipt modal popup');
-check(!/previewThermalSummary[\s\S]{0,120}openReportPreview/.test(indexSrc),
-  'thermal summary must not use A4 report preview');
+check(/function showReceipt\(caseId\)/.test(indexSrc) && !/showReceipt[\s\S]{0,200}showThermalReceiptPreview/.test(indexSrc),
+  'client showReceipt unchanged from thermal preview helper');
 
 check(/applyBranchViewModeUi/.test(indexSrc) && /page-readonly/.test(indexSrc),
   'owner aggregate read-only UI');
