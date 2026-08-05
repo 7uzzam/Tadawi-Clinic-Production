@@ -121,6 +121,7 @@ const baseline = [
   ['tests/baseline/test-v2-5-10-setupstate-runtime-proof.js', 'v2-5.10:setupstate-runtime-proof'],
   ['tests/baseline/test-v2-5-10-final-consolidation.js', 'v2-5.10:final-consolidation'],
   ['tests/baseline/test-v2-5-10-production-lock.js', 'v2-5.10:production-lock'],
+  ['tests/baseline/test-v2-5-10-production-lock-ux.js', 'v2-5.10:production-lock-ux'],
   ['tests/baseline/test-v2-5-10-category-b.js', 'v2-5.10:category-b'],
   ['scripts/v2-5-8-scenarios-all.cjs', 'v2-5.8:scenarios'],
   ['scripts/windows-uat/v2-5-8-activation-runtime.cjs', 'v2-5.8:windows-uat'],

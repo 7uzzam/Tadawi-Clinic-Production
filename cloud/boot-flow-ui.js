@@ -1552,12 +1552,7 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
       bootCta.style.display = complete ? 'none' : '';
       bootCta.hidden = !!complete;
     }
-    // Hide center-setup support entry for normal READY users
-    const centerSupport = document.getElementById('login-center-support')
-      || document.querySelector('#loginScreen details.login-support-details');
-    if (centerSupport && complete && !global.currentUser?.isDev) {
-      centerSupport.style.display = 'none';
-    }
+    // License/dev support entry stays in collapsed <details> — never hide after activation
   }
 
   function applyLoginGate() {

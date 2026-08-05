@@ -122,6 +122,7 @@
     "v2-5-10:category-b": "node tests/baseline/test-v2-5-10-category-b.js",
     "v2-5-10:cloud-discovery": "node tests/baseline/test-v2-5-10-cloud-discovery-restore.js",
     "v2-5-10:production-lock": "node tests/baseline/test-v2-5-10-production-lock.js",
+    "v2-5-10:production-lock-ux": "node tests/baseline/test-v2-5-10-production-lock-ux.js",
     "v2-5-7:scenarios": "node scripts/v2-5-7-scenarios-all.cjs",
     "v2-5-stabilization:scenarios": "node scripts/v2-5-stabilization-scenarios-all.cjs",
     "v2-5-stabilization:uat": "node scripts/windows-uat/v2-5-stabilization-runtime.cjs",

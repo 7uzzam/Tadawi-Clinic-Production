@@ -33,8 +33,10 @@
     <button type="button" class="modal-close" id="lbm-close" aria-label="إغلاق">✕</button>
   </div>
   <div class="modal-body" id="lbm-body">
-    <p id="lbm-intro" style="margin:0 0 12px;font-size:13px;color:var(--text-muted)">
-      يوجد سجلات تشغيلية بلا <code dir="ltr">branchId</code>. يجب تعيين فرع صريح قبل الحفظ أو المزامنة.
+    <p id="lbm-intro" style="margin:0 0 12px;font-size:13px;color:var(--text-muted);line-height:1.7">
+      <strong>معالج لمرة واحدة بعد الترقية</strong> — يفحص السجلات التشغيلية (عملاء، حالات، مواعيد، …) التي لا تحتوي على
+      <code dir="ltr">branchId</code> ويعيّنها لفرع محدد. بدون هذا الترحيل قد تظهر البيانات في كل الفروع عند التبديل،
+      أو تُرفض عمليات الحفظ والمزامنة. إذا اكتمل الترحيل سابقاً فلا حاجة لإعادته.
     </p>
     <div id="lbm-step-detect" class="lbm-step">
       <div class="card" style="padding:12px;margin-bottom:10px">

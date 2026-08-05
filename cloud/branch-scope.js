@@ -105,11 +105,34 @@
     });
   }
 
+  function getViewBranchFilter() {
+    const active = getActiveBranchId();
+    if (active && active !== '*' && active !== '__ALL__') return active;
+    const write = global.BranchContexts?.getOperationalWriteBranch?.();
+    if (write) return write;
+    if (global.OwnerBranchMode?.isBranchMode?.()) {
+      return global.OwnerBranchMode.getBranchId() || null;
+    }
+    return null;
+  }
+
+  function isAggregateBranchView() {
+    const active = getActiveBranchId();
+    if (active === '*' || active === '__ALL__') return true;
+    if (!getViewBranchFilter()
+      && global.OwnerBranchMode?.isOwnerMode?.()
+      && (global.RolePolicy?.isOrganizationOwner?.(global.currentUser)
+        || String(global.currentUser?.role || '').toLowerCase() === 'owner')) {
+      return true;
+    }
+    return false;
+  }
+
   /**
    * UI view filter:
    * - Device locked → locked branch only
-   * - Owner Branch Mode → selected branch only (new branches start empty)
-   * - Owner Mode overview → all records (Hub/analytics)
+   * - Active / write branch selected → that branch only (incl. owner after switcher)
+   * - Owner aggregate (* / Owner Mode) → all records (read-only enforced in UI)
    * - Normal staff → active branch
    */
   function filterForActiveView(records) {
@@ -117,16 +140,9 @@
     if (global.DeviceConfig?.isBranchLocked?.()) {
       return filterByBranch(records, global.DeviceConfig.getLockedBranchId() || DEFAULT_BRANCH_ID);
     }
-    if (global.OwnerBranchMode?.isBranchMode?.()) {
-      return filterByBranch(records, global.OwnerBranchMode.getBranchId() || getActiveBranchId());
-    }
-    if (
-      global.OwnerBranchMode?.isOwnerMode?.()
-      && (global.RolePolicy?.isOrganizationOwner?.(global.currentUser)
-        || String(global.currentUser?.role || '').toLowerCase() === 'owner')
-    ) {
-      return records.slice();
-    }
+    const viewBranch = getViewBranchFilter();
+    if (viewBranch) return filterByBranch(records, viewBranch);
+    if (isAggregateBranchView()) return records.slice();
     return filterByBranch(records, getActiveBranchId());
   }
 
@@ -264,6 +280,8 @@
     userCanAccessBranch,
     filterByBranch,
     filterForActiveView,
+    getViewBranchFilter,
+    isAggregateBranchView,
     filterByUserScope,
     listAuthorizedBranches,
     ensureRecordBranch,

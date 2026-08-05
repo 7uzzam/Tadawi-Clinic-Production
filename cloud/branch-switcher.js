@@ -67,6 +67,7 @@
       global.notify?.('🌿 تم التبديل إلى: ' + branchName(bid), 'info');
     }
     refreshSurfaces();
+    if (typeof global.applyBranchViewModeUi === 'function') global.applyBranchViewModeUi();
   }
 
   function confirmSwitch(bid, sel) {

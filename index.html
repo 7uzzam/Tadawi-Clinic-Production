@@ -5449,7 +5449,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <button class="btn btn-ghost btn-sm" onclick="exportToday()">📥 تصدير CSV</button>
           <button class="btn btn-ghost btn-sm btn-print-a4" onclick="printToday()" title="معاينة كشف حالات اليوم قبل الطباعة">👁️ معاينة كشف اليوم</button>
           <button class="btn btn-ghost btn-sm btn-print-a4" data-feature="rep_zreport" onclick="printZReport()">Z-Report A4</button>
-          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="printDailyThermal()">فاتورة الدخل الحراري</button>
+          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="previewDailyThermal()">👁️ معاينة الدخل الحراري</button>
         </div>
         </div>
       </div>
@@ -5635,7 +5635,7 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
           <button class="btn btn-primary btn-sm" onclick="generateMonthlyReport()">📊 عرض</button>
           <button class="btn btn-accent btn-sm btn-print-a4" onclick="exportReport()" title="معاينة التقرير الشهري قبل الطباعة">👁️ معاينة التقرير الشهري</button>
           <button class="btn btn-primary btn-sm btn-print-a4" data-feature="rep_archive_a4" onclick="MonthlyArchive.openModal()">📂 أرشيف الشهر A4</button>
-          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="printThermalSummary()" data-feature="rep_thermal_period">فاتورة حرارية للفترة</button>
+          <button class="btn btn-ghost btn-sm btn-print-thermal" onclick="previewThermalSummary()" data-feature="rep_thermal_period">👁️ معاينة حرارية للفترة</button>
         </div>
       </div>
 
@@ -6341,6 +6341,21 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
         </div>
       </div>
 
+      <div class="card" id="bk-status-summary" style="margin-bottom:16px;padding:14px;border:1.5px solid var(--primary-light)">
+        <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <span>📊 ملخص النسخ والمزامنة</span>
+          <button type="button" class="btn btn-accent btn-sm" id="btn-bk-sync-now-top" data-ss-surface="sync_manual" onclick="runCloudV2SyncNow()">🔄 مزامنة الآن</button>
+        </div>
+        <div class="backup-status-card">
+          <div class="backup-status-item"><label>حساب Google</label><strong id="bk-sum-google" style="font-size:11px;word-break:break-all" dir="ltr">—</strong></div>
+          <div class="backup-status-item"><label>آخر نسخ محلي</label><strong id="bk-sum-local">—</strong></div>
+          <div class="backup-status-item"><label>آخر نسخ سحابي</label><strong id="bk-sum-cloud">—</strong></div>
+          <div class="backup-status-item"><label>آخر مزامنة</label><strong id="bk-sum-sync">—</strong></div>
+          <div class="backup-status-item"><label>فرع العمل</label><strong id="bk-sum-branch">—</strong></div>
+        </div>
+        <p style="margin:10px 0 0;font-size:11px;color:var(--text-muted);line-height:1.65">المزامنة التشغيلية لحظية (Push) — النسخ السحابي الكامل كل 15 دقيقة افتراضياً بعد ربط Google.</p>
+      </div>
+
       <div class="backup-stack-grid">
       <div class="card" style="border:1.5px solid var(--accent)">
         <span class="backup-role-badge backup-role-badge--oauth">① ربط الحساب — OAuth</span>
@@ -6423,36 +6438,35 @@ tr.client-row-selected { background: #ecfdf5 !important; outline: 2px solid var(
             <button type="button" class="btn btn-accent btn-sm" onclick="LegacyBranchMigrationUI.openWizard({force:true})">🧭 معالج الترحيل</button>
           </div>
           <div id="bk-cv2-legacy-branch-status" style="font-size:11px;color:var(--text-muted);line-height:1.65">—</div>
+          <p style="margin:8px 0 0;font-size:11px;color:var(--text-muted);line-height:1.65">يُستخدم مرة واحدة عند ترقية من إصدار قديم: يضيف <code dir="ltr">branchId</code> للسجلات التي لا تحمل فرعاً (عملاء، حالات، …) حتى لا تظهر في كل الفروع ولا تُحظر المزامنة.</p>
         </div>
       </div>
 
       <div class="card" style="border:1.5px solid var(--success, #2e7d32)">
-        <span class="backup-role-badge backup-role-badge--local">⑤ Backup V2 — SQLite DR</span>
+        <span class="backup-role-badge backup-role-badge--local">③ نسخ احتياطي — استعادة كوارث</span>
         <div class="card-header" style="flex-wrap:wrap;gap:10px;padding-top:0">
-          <div class="card-title">🗄️ استعادة الكوارث (Backup V2)</div>
+          <div class="card-title">🗄️ النسخ الاحتياطي واستعادة الكوارث</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-primary btn-sm" type="button" onclick="runBackupV2Create()">💾 نسخ V2 الآن</button>
-            <button class="btn btn-accent btn-sm" type="button" onclick="runBackupV2RestoreManual()" aria-label="Restore Backup V2 file via wizard">♻️ استعادة ملف V2</button>
-            <button class="btn btn-ghost btn-sm" type="button" onclick="runBackupV2RestoreLatest()" aria-label="Restore latest authorized Backup V2">⏫ أحدث نسخة مصرّح بها</button>
-            <button class="btn btn-ghost btn-sm" type="button" onclick="refreshBackupV2HistoryUi()" aria-label="Refresh Backup V2 history">📜 سجل النسخ</button>
-            <button class="btn btn-ghost btn-sm" type="button" onclick="toggleOpsUxLang()" aria-label="Toggle Arabic English language">AR/EN</button>
+            <button class="btn btn-primary btn-sm" type="button" onclick="runBackupV2Create()">💾 نسخ الآن</button>
+            <button class="btn btn-accent btn-sm" type="button" onclick="runBackupV2RestoreManual()" aria-label="Restore backup file via wizard">♻️ استعادة من ملف</button>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="runBackupV2RestoreLatest()" aria-label="Restore latest authorized backup">⏫ أحدث نسخة</button>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="refreshBackupV2HistoryUi()" aria-label="Refresh backup history">📜 سجل النسخ</button>
           </div>
         </div>
         <div id="ops-ux-backup-host">
           <div id="ops-ux-status-host"></div>
         </div>
-        <p class="backup-card-desc">مسار الإنتاج لاستعادة <code dir="ltr">tadawi.db</code> والمرفقات والإعدادات. يرفض نسخ مركز/فرع غير مصرّح، ويستبدل البيانات بشكل ذرّي مع إعادة تشغيل البرنامج.</p>
+        <p class="backup-card-desc">مسار الإنتاج لاستعادة قاعدة البيانات والمرفقات. يُرفض أي نسخة لمركز/فرع غير مصرّح به.</p>
         <div class="form-grid form-grid-2" style="gap:10px;margin-top:10px">
-          <div class="form-group" style="margin:0">
-            <label class="form-label">مفتاح Backup V2 (تلقائي)</label>
-            <input class="form-control" type="password" id="bk-v2-pass" placeholder="تلقائي — لا يلزم إدخال يدوي" autocomplete="new-password">
-            <div style="font-size:11px;color:var(--text-muted);margin-top:6px">يُولَّد تلقائياً لكل مركز. يمكنك إدخال مفتاح مخصص فقط عند الحاجة.</div>
+          <div class="form-group" style="margin:0;display:none" aria-hidden="true">
+            <label class="form-label">مفتاح التشفير (تلقائي)</label>
+            <input class="form-control" type="password" id="bk-v2-pass" placeholder="تلقائي" autocomplete="new-password" tabindex="-1">
           </div>
           <div class="form-group" style="margin:0">
-            <label class="form-label">جدولة V2 (دقائق)</label>
+            <label class="form-label">جدولة النسخ التلقائي</label>
             <select class="form-control" id="bk-v2-schedule-interval" onchange="saveBackupV2ScheduleFromUI()">
               <option value="0">معطّل</option>
-              <option value="15">كل 15 دقيقة</option>
+              <option value="15" selected>كل 15 دقيقة</option>
               <option value="30">كل 30 دقيقة</option>
               <option value="60">كل ساعة</option>
               <option value="360">كل 6 ساعات</option>
@@ -9795,11 +9809,9 @@ function completeAuthenticatedLogin() {
       ActivationSyncDefaults.applyDefaults?.({ startSync: true });
     }
   } catch { /* empty */ }
-  try {
-    if (window.SyncEngine && !window.SyncEngine.isRunning?.()) {
-      window.SyncEngine.start?.({ pollIntervalMs: 15000 });
-    }
-  } catch { /* empty */ }
+  if (typeof BranchSwitcher !== 'undefined' && BranchSwitcher.applyVisibility) BranchSwitcher.applyVisibility();
+  if (typeof applyBranchViewModeUi === 'function') applyBranchViewModeUi();
+  try { SetupStateDom?.applyDomVisibility?.(); } catch { /* empty */ }
 }
 
 async function ensureRbacSessionBound() {
@@ -10528,7 +10540,7 @@ const defaultBackupConfig = {
   cloudProvider: 'google',
   cloudEnabled: false,
   encrypt: false,
-  autoIntervalMin: 60,
+  autoIntervalMin: 15,
   triggers: { onClose: true, beforeUpdate: true, beforeRestore: true, afterOps: 50 },
   deviceName: 'PC-MAIN',
   encryptVerifier: '',
@@ -10988,6 +11000,7 @@ function showPageAfterRestoreGate(id) {
   });
   const mainScroll = document.getElementById('main-scroll');
   if (mainScroll) mainScroll.scrollTop = 0;
+  if (typeof applyBranchViewModeUi === 'function') applyBranchViewModeUi();
   updateContextForPage(id);
   if (id === 'dashboard') { refreshDashboard(); refreshBookingsTable(); refreshDashboardAlerts(); }
   if (id === 'daily') { refreshDailyTable(); populateDoctorSelects(); populatePackageSelect(); refreshServiceSelects(); calcFinancials(); }
@@ -14486,6 +14499,12 @@ function saveCase() {
     c.preTax = finalTotal;
     c.vat = 0;
   }
+  if (typeof BranchScope !== 'undefined' && BranchScope.ensureRecordBranch) {
+    BranchScope.ensureRecordBranch(c, BranchContexts?.getOperationalWriteBranch?.() || BranchScope.getActiveBranchId?.());
+  } else if (!c.branchId) {
+    c.branchId = (typeof BranchContexts !== 'undefined' && BranchContexts.getOperationalWriteBranch?.())
+      || BranchScope?.getActiveBranchId?.() || 'BR-MAIN';
+  }
   if (isEdit) {
     const idx = cases.findIndex(x => x.id === window._editCaseId);
     if (idx !== -1) cases[idx] = { ...oldCase, ...c, id: window._editCaseId };
@@ -14770,8 +14789,39 @@ function deleteCase(id) {
 
 function todayCases() {
   const today = typeof getTodayISO === 'function' ? getTodayISO() : formatDateISO(new Date());
-  return cases.filter(c => c.date === today);
+  const dayCases = cases.filter(c => c.date === today);
+  return typeof getUiScopedRecords === 'function' ? getUiScopedRecords(dayCases) : dayCases;
 }
+
+/** Parse YYYY-MM-DD without timezone shift (fixes month-end / July loss on some locales). */
+function parseISODateLocal(dateStr) {
+  const s = String(dateStr || '').trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return { year: +m[1], month: +m[2], day: +m[3] };
+}
+
+function recordMatchesMonth(rec, month, year) {
+  const p = parseISODateLocal(rec?.date);
+  if (!p) return false;
+  return p.month === month && p.year === year;
+}
+
+function applyBranchViewModeUi() {
+  const main = document.getElementById('main');
+  if (!main || !currentUser) return;
+  const isOwner = String(currentUser.role || '').toLowerCase() === 'owner'
+    || (typeof RolePolicy !== 'undefined' && RolePolicy.isOrganizationOwner?.(currentUser));
+  const aggregate = typeof BranchScope !== 'undefined' && BranchScope.isAggregateBranchView?.();
+  const readOnly = isOwner && aggregate;
+  main.classList.toggle('page-readonly', !!readOnly);
+  if (readOnly && typeof notify === 'function' && !window._branchReadOnlyNotified) {
+    window._branchReadOnlyNotified = true;
+    notify('👁️ عرض كل الفروع — قراءة ومعاينة فقط. اختر فرعاً محدداً للإدخال.', 'info');
+  }
+  if (!readOnly) window._branchReadOnlyNotified = false;
+}
+window.applyBranchViewModeUi = applyBranchViewModeUi;
 
 /** Refresh all views derived from cases/clients after save, delete, import, or restore */
 function refreshCaseDerivedViews(includeDaily) {
@@ -15648,30 +15698,34 @@ function generateReportData() {
 
 // ── Central date-range case filter used by all reports ──
 function getRepFilteredCases() {
+  let rows;
   if (window._archiveContext) {
     const { month, year } = window._archiveContext;
-    return cases.filter(c => { const d = new Date(c.date); return d.getMonth() + 1 === month && d.getFullYear() === year; });
+    rows = cases.filter(c => recordMatchesMonth(c, month, year));
+  } else {
+    const mode = document.getElementById('rep-filter-mode')?.value || 'month';
+    if (mode === 'month') {
+      const month = parseInt(document.getElementById('rep-month-sel')?.value || new Date().getMonth() + 1, 10);
+      const year = parseInt(document.getElementById('rep-year-sel')?.value || new Date().getFullYear(), 10);
+      rows = cases.filter(c => recordMatchesMonth(c, month, year));
+    } else if (mode === 'year') {
+      const year = parseInt(document.getElementById('rep-year-only')?.value || new Date().getFullYear(), 10);
+      rows = cases.filter(c => {
+        const p = parseISODateLocal(c.date);
+        return p && p.year === year;
+      });
+    } else if (mode === 'day') {
+      const day = document.getElementById('rep-day-sel')?.value || '';
+      rows = cases.filter(c => c.date === day);
+    } else if (mode === 'range') {
+      const from = document.getElementById('rep-range-from')?.value || '';
+      const to = document.getElementById('rep-range-to')?.value || '';
+      rows = cases.filter(c => (!from || c.date >= from) && (!to || c.date <= to));
+    } else {
+      rows = cases.slice();
+    }
   }
-  const mode = document.getElementById('rep-filter-mode')?.value || 'month';
-  if (mode === 'month') {
-    const month = parseInt(document.getElementById('rep-month-sel')?.value || new Date().getMonth()+1);
-    const year  = parseInt(document.getElementById('rep-year-sel')?.value  || new Date().getFullYear());
-    return cases.filter(c => { const d=new Date(c.date); return d.getMonth()+1===month && d.getFullYear()===year; });
-  }
-  if (mode === 'year') {
-    const year = parseInt(document.getElementById('rep-year-only')?.value || new Date().getFullYear());
-    return cases.filter(c => new Date(c.date).getFullYear()===year);
-  }
-  if (mode === 'day') {
-    const day = document.getElementById('rep-day-sel')?.value || '';
-    return cases.filter(c => c.date === day);
-  }
-  if (mode === 'range') {
-    const from = document.getElementById('rep-range-from')?.value || '';
-    const to   = document.getElementById('rep-range-to')?.value   || '';
-    return cases.filter(c => (!from||c.date>=from) && (!to||c.date<=to));
-  }
-  return cases;
+  return typeof getUiScopedRecords === 'function' ? getUiScopedRecords(rows) : rows;
 }
 
 function filterBillableCases(arr) {
@@ -18228,7 +18282,11 @@ function initBackupUI() {
   setChk('bk-local-enabled', cfg.localEnabled !== false);
   setChk('bk-cloud-enabled', cfg.cloudEnabled);
   refreshBackupPathUI();
-  setVal('bk-auto-interval', cfg.autoIntervalMin || 0);
+  setVal('bk-auto-interval', cfg.autoIntervalMin > 0 ? cfg.autoIntervalMin : 15);
+  if (!cfg.autoIntervalMin) {
+    cfg.autoIntervalMin = 15;
+    DB.set('settings', settings);
+  }
   setChk('bk-trig-close', cfg.triggers?.onClose !== false);
   setChk('bk-trig-update', cfg.triggers?.beforeUpdate !== false);
   setChk('bk-trig-restore', cfg.triggers?.beforeRestore !== false);
@@ -18257,6 +18315,29 @@ function initBackupUI() {
     });
     _backupHooksAttached = true;
   }
+}
+
+function renderBackupStatusSummary() {
+  const wrap = document.getElementById('bk-status-summary');
+  if (!wrap) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const g = settings?.backup?.providers?.google;
+  set('bk-sum-google', g?.connected ? (g.email || '✅ متصل') : '🔴 غير متصل — اربط من أدناه');
+  const lastLocal = (backupRegistry || []).find((r) => r && r.local);
+  set('bk-sum-local', lastLocal?.at ? formatBackupDateTime(lastLocal.at) : 'لم تُنشأ بعد');
+  const cloudV2Date = settings?.cloudV2?.lastAutoBackupDate;
+  const lastCloud = (backupRegistry || []).find((r) => r && r.cloud);
+  const cloudAt = lastCloud?.at || g?.lastSync || cloudV2Date;
+  set('bk-sum-cloud', cloudAt ? formatBackupDateTime(cloudAt) : 'لم تُنشأ بعد');
+  const sync = typeof SyncEngine !== 'undefined' ? SyncEngine.getStatus?.() : null;
+  const lastSync = sync?.lastPushAt || sync?.lastPollAt;
+  set('bk-sum-sync', lastSync ? formatBackupDateTime(lastSync) : (tdwIsCloudV2Enabled?.() ? 'لم تتم بعد' : '—'));
+  const bid = (typeof BranchContexts !== 'undefined' && BranchContexts.getOperationalWriteBranch?.())
+    || (typeof BranchScope !== 'undefined' && BranchScope.getActiveBranchId?.())
+    || '—';
+  const lic = typeof LicenseCloud !== 'undefined' ? LicenseCloud.loadLocal?.() : null;
+  const bname = lic?.branches?.find((b) => b && b.id === bid)?.name || bid;
+  set('bk-sum-branch', bname);
 }
 
 function renderCloudV2BackupStatus() {
@@ -18326,6 +18407,7 @@ function renderCloudV2BackupStatus() {
   loadCloudV2PollIntervalUI();
   renderDriveMigrationStatusUI();
   renderLegacyBranchMigrationStatusUI();
+  renderBackupStatusSummary();
 }
 
 function renderLegacyBranchMigrationStatusUI() {
@@ -19186,7 +19268,7 @@ function printAttSheet() {
 }
 
 // ── THERMAL: Daily Income Receipt ──
-async function printDailyThermal() {
+function buildDailyThermalHtml() {
   const tc   = todayCases();
   const cn   = settings.centerName || 'مركز الحجامة';
   const now  = new Date();
@@ -19194,21 +19276,15 @@ async function printDailyThermal() {
   const dayName = AR_WEEKDAYS[now.getDay()];
   const dateStr = `${dayName}\n${fmtDate(todayIso)}`;
   const timeStr = to12h(nowTime24());
-
-  if (!tc.length) { notify('⚠️ لا توجد حالات اليوم', 'danger'); return; }
-
+  if (!tc.length) return null;
   const billable = filterBillableCases(tc);
   const totalIncome = billable.reduce((a,c)=>a+c.total, 0);
   const totalCash   = billable.reduce((a,c)=>a+c.cash,  0);
   const totalCard   = billable.reduce((a,c)=>a+c.card,  0);
   const totalVat    = billable.reduce((a,c)=>a+c.vat,   0);
-
-  // Today's expenses
   const todayExpenses = expenses.filter(e => e.date === formatDateISO(now) && isExpensePaid(e));
   const totalExp = todayExpenses.reduce((a,e)=>a+e.amount, 0);
   const netIncome = totalIncome - totalExp;
-
-  // Card breakdown
   const byCard = {};
   tc.forEach(c => {
     if (typeof isBillableCase === 'function' && !isBillableCase(c)) return;
@@ -19217,7 +19293,6 @@ async function printDailyThermal() {
       byCard[ct] = (byCard[ct]||0) + c.card;
     }
   });
-
   let expLines = '';
   if (todayExpenses.length) {
     expLines = `
@@ -19226,11 +19301,9 @@ async function printDailyThermal() {
       ${todayExpenses.map(e=>`<div class="rrow"><span>${e.desc}</span><span dir="ltr">${fmtNum(e.amount,0)} ﷼</span></div>`).join('')}
       <div class="rrow rb"><span>إجمالي المصروفات / Total Expenses</span><span dir="ltr">${fmtNum(totalExp,0)} ﷼</span></div>`;
   }
-
   let cardLines = Object.entries(byCard).map(([t,v])=>`
     <div class="rrow"><span>${CARD_NAMES[t]||t} / ${CARD_NAMES_EN[t]||t}</span><span dir="ltr">${fmtNum(v,2)} ﷼</span></div>`).join('');
-
-  const html = `
+  return `
     <div class="receipt">
       <div class="rc">
         <div class="r-brand">${cn}</div>
@@ -19265,7 +19338,19 @@ async function printDailyThermal() {
       <div class="rc rfooter">شكراً لزيارتكم</div>
       <div class="rc rfooter-en">Thank you for your visit</div>
     </div>`;
+}
 
+function previewDailyThermal() {
+  const html = buildDailyThermalHtml();
+  if (!html) { notify('⚠️ لا توجد حالات اليوم', 'danger'); return; }
+  const doc = typeof wrapThermalReceiptHtml === 'function' ? wrapThermalReceiptHtml(html) : html;
+  openReportPreview(doc, 'معاينة الدخل الحراري');
+}
+window.previewDailyThermal = previewDailyThermal;
+
+async function printDailyThermal() {
+  const html = buildDailyThermalHtml();
+  if (!html) { notify('⚠️ لا توجد حالات اليوم', 'danger'); return; }
   await printThermalDoc(html, '🖨️ تم إرسال فاتورة الدخل اليومي للطباعة');
 }
 
@@ -21868,6 +21953,11 @@ function saveOldCase() {
     c.preTax = finalTotal;
     c.vat = 0;
   }
+  if (typeof BranchScope !== 'undefined' && BranchScope.ensureRecordBranch) {
+    BranchScope.ensureRecordBranch(c);
+  } else if (!c.branchId) {
+    c.branchId = BranchScope?.getActiveBranchId?.() || 'BR-MAIN';
+  }
   cases.push(c);
   DB.set('cases', cases);
   trackBackupOperation();
@@ -22402,10 +22492,16 @@ function printSalesReport() {
 // THERMAL SUMMARY REPORT — 80mm for date ranges
 // ═══════════════════════════════════════════════
 async function printThermalSummary() {
+  const html = buildThermalSummaryHtml();
+  if (!html) return;
+  await printThermalDoc(html, '🖨️ تم إرسال ملخص الفترة الحراري للطباعة');
+}
+
+function buildThermalSummaryHtml() {
   const mc    = getRepBillableCases();
   const label = getRepLabel();
   const cn    = settings.centerName || 'مركز الحجامة';
-  if (!mc.length) { notify('⚠️ لا توجد بيانات للفترة المحددة', 'danger'); return; }
+  if (!mc.length) { notify('⚠️ لا توجد بيانات للفترة المحددة', 'danger'); return null; }
 
   const totalIncome = mc.reduce((a,c)=>a+c.total, 0);
   const totalVat    = mc.reduce((a,c)=>a+c.vat, 0);
@@ -22414,17 +22510,16 @@ async function printThermalSummary() {
   const totalComm   = mc.reduce((a,c)=>a+c.commission, 0);
   const totalDisc   = mc.reduce((a,c)=>a+(c.discountAmt||0), 0);
 
-  // Expenses for the same date range
   const allExp = DB.get('expenses',[]);
   const mode   = document.getElementById('rep-filter-mode')?.value || 'month';
   let filteredExp = [];
   if (mode==='month') {
-    const m = parseInt(document.getElementById('rep-month-sel')?.value||new Date().getMonth()+1);
-    const y = parseInt(document.getElementById('rep-year-sel')?.value||new Date().getFullYear());
-    filteredExp = allExp.filter(e=>{const d=new Date(e.date);return d.getMonth()+1===m&&d.getFullYear()===y;});
+    const m = parseInt(document.getElementById('rep-month-sel')?.value||new Date().getMonth()+1, 10);
+    const y = parseInt(document.getElementById('rep-year-sel')?.value||new Date().getFullYear(), 10);
+    filteredExp = allExp.filter(e => recordMatchesMonth(e, m, y));
   } else if (mode==='year') {
-    const y = parseInt(document.getElementById('rep-year-only')?.value||new Date().getFullYear());
-    filteredExp = allExp.filter(e=>new Date(e.date).getFullYear()===y);
+    const y = parseInt(document.getElementById('rep-year-only')?.value||new Date().getFullYear(), 10);
+    filteredExp = allExp.filter(e => { const p = parseISODateLocal(e.date); return p && p.year === y; });
   } else if (mode==='day') {
     const day = document.getElementById('rep-day-sel')?.value||'';
     filteredExp = allExp.filter(e=>e.date===day);
@@ -22436,7 +22531,6 @@ async function printThermalSummary() {
   const totalExp = filteredExp.reduce((a,e)=>a+e.amount, 0);
   const netIncome = totalIncome - totalExp;
 
-  // Doctor breakdown
   const docMap = {};
   mc.forEach(c=>{
     if (!docMap[c.doctorId]) docMap[c.doctorId]={name:c.doctorName,cases:0,income:0};
@@ -22446,7 +22540,7 @@ async function printThermalSummary() {
     `<div class="rrow"><span>${d.name}</span><span dir="ltr">${fmtNum(d.cases,0)} / ${fmtMoney(d.income)}</span></div>`
   ).join('');
 
-  const html = `
+  return `
     <div class="receipt">
       <!-- Header -->
       <div class="rc r-brand">${cn}</div>
@@ -22487,8 +22581,15 @@ async function printThermalSummary() {
         <span style="direction:ltr">${new Date().toLocaleDateString('en-US')}</span>
       </div>
     </div>`;
-  await printThermalDoc(html, '🖨️ تم إرسال ملخص الفترة الحراري للطباعة');
 }
+
+function previewThermalSummary() {
+  const html = buildThermalSummaryHtml();
+  if (!html) return;
+  const doc = typeof wrapThermalReceiptHtml === 'function' ? wrapThermalReceiptHtml(html) : html;
+  openReportPreview(doc, 'معاينة ملخص الفترة — حراري');
+}
+window.previewThermalSummary = previewThermalSummary;
 
 function showClientHistory(clientKey) {
   const clientCases = getCasesForClientKey(clientKey)

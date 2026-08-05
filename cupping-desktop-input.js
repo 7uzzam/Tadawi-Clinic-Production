@@ -216,9 +216,56 @@
     document.head.appendChild(s);
   }
 
+  function onKeyDown(e) {
+    if (e.defaultPrevented) return;
+    if (!e.ctrlKey && !e.metaKey) return;
+    const field = document.activeElement;
+    if (!isEditableField(field)) return;
+    if (field.id && READONLY_IDS.has(field.id) && !field.isContentEditable) return;
+
+    const key = String(e.key || '').toLowerCase();
+    if (key === 'z') {
+      e.preventDefault();
+      execOnField(field, e.shiftKey ? 'redo' : 'undo');
+      return;
+    }
+    if (key === 'y') {
+      e.preventDefault();
+      execOnField(field, 'redo');
+      return;
+    }
+    if (key === 'c') {
+      e.preventDefault();
+      execOnField(field, 'copy');
+      return;
+    }
+    if (key === 'x') {
+      e.preventDefault();
+      execOnField(field, 'cut');
+      return;
+    }
+    if (key === 'a') {
+      e.preventDefault();
+      execOnField(field, 'selectAll');
+      return;
+    }
+    if (key === 'v') {
+      e.preventDefault();
+      readClipboard().then((clip) => {
+        if (clip && document.queryCommandSupported?.('insertText')) {
+          field.focus();
+          document.execCommand('insertText', false, clip);
+        } else {
+          execOnField(field, 'paste');
+        }
+      });
+    }
+  }
+
   function init() {
     injectStyles();
     document.addEventListener('contextmenu', onContextMenu, true);
+    document.addEventListener('keydown', onKeyDown, true);
     document.addEventListener('click', hideMenu, true);
     document.addEventListener('scroll', hideMenu, true);
     window.addEventListener('resize', hideMenu);
