@@ -1055,15 +1055,20 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
 
         const renderProgress = (snap) => {
           if (!progressHost || !snap) return;
+          const stageLine = snap.stageCount
+            ? `${snap.stageIndex || 0}/${snap.stageCount} — ${snap.stageLabel || '—'}`
+            : (snap.stageLabel || 'فحص مصادر البيانات');
           progressHost.innerHTML = `<div class="bf-restore-progress" dir="rtl">
             <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px">
-              <span>${snap.stageIndex}/${snap.stageCount} — ${snap.stageLabel}</span>
-              <strong dir="ltr">${snap.percent}%</strong>
+              <span>${stageLine}</span>
+              <strong dir="ltr">${snap.percent || 0}%</strong>
             </div>
-            <div class="bar"><i style="width:${snap.percent}%"></i></div>
+            <div class="bar"><i style="width:${snap.percent || 0}%"></i></div>
             <div class="bf-source-meta" style="margin-top:6px">
-              المنقضي: ${Math.round((snap.elapsedMs || 0) / 1000)}ث ·
-              ${snap.downloadedBytes ? `منزّل: ${Discovery.formatBytes(snap.downloadedBytes)}` : ''}
+              المنقضي: ${Math.round((snap.elapsedMs || 0) / 1000)}ث
+              ${snap.budgetMs ? ` / ~${Math.round(snap.budgetMs / 1000)}ث` : ''}
+              ${snap.foundCount ? ` · وُجد: ${snap.foundCount}` : ''}
+              ${snap.downloadedBytes ? ` · منزّل: ${Discovery.formatBytes(snap.downloadedBytes)}` : ''}
               ${snap.totalBytes ? ` / ${Discovery.formatBytes(snap.totalBytes)}` : ''}<br>
               آخر نشاط: ${snap.lastActivity || '—'}
               ${snap.diagnosticId ? `<br>Diagnostic ID: <code dir="ltr">${snap.diagnosticId}</code>` : ''}
@@ -1108,13 +1113,31 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
 
           restoreInFlight = true;
           try { global.OwnerManagement?.setSystemBusy?.('discovery'); } catch { /* empty */ }
-          setStatus('🔍 فحص سريع لمصادر البيانات (≤15ث) — بلا تنزيل…');
+          const discoveryBudgetMs = Discovery.DISCOVERY_TIMEOUT_MS || 60000;
+          setStatus(`🔍 فحص مصادر البيانات (حتى ${Math.round(discoveryBudgetMs / 1000)}ث) — بلا تنزيل…`);
           choiceHost.innerHTML = '';
-          if (statusEl) statusEl.textContent = '⏳ جارٍ الفحص المتوازي: سحابة / محلي / نسخ / فارغ…';
+          if (statusEl) statusEl.textContent = '⏳ جارٍ الفحص: سحابة / محلي / نسخ — مع مؤشر تقدم…';
+          if (progressHost) {
+            renderProgress({
+              stageLabel: 'بدء الفحص',
+              percent: 2,
+              elapsedMs: 0,
+              budgetMs: discoveryBudgetMs,
+              lastActivity: 'بيانات وصفية فقط — لا تنزيل',
+            });
+          }
 
           let discovery;
           try {
-            discovery = await Discovery.discoverAllSources({ timeoutMs: 15000 });
+            discovery = await Discovery.discoverAllSources({
+              timeoutMs: discoveryBudgetMs,
+              onProgress: (snap) => {
+                renderProgress(snap);
+                if (statusEl && snap?.stageLabel) {
+                  statusEl.textContent = `⏳ ${snap.stageLabel} — ${snap.percent || 0}%`;
+                }
+              },
+            });
           } catch (e) {
             discovery = { ok: false, error: e.message || String(e), cloud: { status: 'error', message: e.message } };
           } finally {
@@ -1124,18 +1147,26 @@ body.bf-active #ops-ux-restore-wizard{z-index:100050!important}
 
           const cloud = discovery?.cloud || {};
           const dur = discovery?.durationMs != null ? `${discovery.durationMs}ms` : '—';
+          const cloudHasPoint = !!(cloud.newest && (cloud.status === 'ready' || cloud.status === 'ipc_missing'));
           if (statusEl) {
-            statusEl.textContent = cloud.timedOut
-              ? `⏱️ انتهى وقت الفحص السحابي (${dur}). يمكنك إعادة المحاولة أو اختيار مصدر آخر.`
-              : `✅ اكتمل الفحص خلال ${dur}. لا تنزيل أثناء الاكتشاف.`;
+            if (cloudHasPoint && cloud.timedOut) {
+              statusEl.textContent = `⚠️ اكتمل الفحص جزئياً (${dur}) — وُجدت نسخة سحابية للتأكيد.`;
+            } else if (cloud.timedOut) {
+              statusEl.textContent = `⏱️ انتهى وقت الفحص السحابي (${dur}). يمكنك إعادة المحاولة أو اختيار مصدر آخر.`;
+            } else {
+              statusEl.textContent = `✅ اكتمل الفحص خلال ${dur}. لا تنزيل أثناء الاكتشاف.`;
+            }
           }
-          setStatus(cloud.timedOut ? '⏱️ مهلة اكتشاف السحابة — أعد المحاولة' : '✅ نتائج الفحص جاهزة');
+          setStatus(cloud.timedOut && !cloudHasPoint
+            ? '⏱️ مهلة اكتشاف السحابة — أعد المحاولة'
+            : (cloudHasPoint && cloud.timedOut ? '⚠️ نتائج جزئية — يمكن التأكيد' : '✅ نتائج الفحص جاهزة'));
 
           // --- Cloud card ---
           const newest = cloud.newest;
           const cloudStatus = cloud.status || 'unknown';
           const cloudMeta = newest
-            ? `الحالة: <strong>جاهزة للتأكيد</strong><br>
+            ? `الحالة: <strong>${cloud.timedOut ? 'جاهزة (فحص جزئي)' : 'جاهزة للتأكيد'}</strong><br>
+               ${cloud.timedOut ? `<span class="bf-source-meta">⚠️ ${cloud.message || 'انتهت المهلة لكن وُجدت نسخة.'}</span><br>` : ''}
                النوع: ${newest.kind === 'backup_file' ? 'نسخة Backup' : 'نقطة مزامنة سحابية'}<br>
                المركز: <code dir="ltr">${cloud.centerId || discovery?.identity?.centerId || '—'}</code><br>
                الفرع: <code dir="ltr">${cloud.branchId || discovery?.identity?.branchId || '—'}</code><br>

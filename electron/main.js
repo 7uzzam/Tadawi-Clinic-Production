@@ -483,19 +483,21 @@ handle('backup:listCloudBackups', async (_e, provider, prefix) =>
     V.asOptionalString(prefix, { name: 'prefix', max: 200 })
   ));
 
-handle('backup:discoverCloudRestorePoints', async (_e, options) => {
+handle('backup:discoverCloudRestorePoints', async (event, options) => {
   const opts = V.asObject(options || {}, { name: 'options' });
   let timeoutMs;
   if (opts.timeoutMs != null) {
     const n = Number(opts.timeoutMs);
-    if (!Number.isFinite(n) || n < 1000 || n > 20000) V.fail('INVALID_TIMEOUT', 'timeoutMs_out_of_range');
+    if (!Number.isFinite(n) || n < 1000 || n > 90000) V.fail('INVALID_TIMEOUT', 'timeoutMs_out_of_range');
     timeoutMs = Math.floor(n);
   }
   return backupDiscoverCloudRestorePoints({
     centerId: V.asOptionalString(opts.centerId, { name: 'centerId', max: 120 }),
     branchId: V.asOptionalString(opts.branchId, { name: 'branchId', max: 120 }),
+    branchName: V.asOptionalString(opts.branchName, { name: 'branchName', max: 200 }),
     centerName: V.asOptionalString(opts.centerName, { name: 'centerName', max: 200 }),
     timeoutMs,
+    progressSender: event.sender,
   });
 });
 

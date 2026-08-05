@@ -108,7 +108,7 @@ const ALLOWED_INVOKE = new Set([
 
 const ALLOWED_SEND = new Set(['uninstall:wipeComplete']);
 const ALLOWED_SEND_SYNC = new Set(['dialog:confirmSync', 'dialog:promptSync']);
-const ALLOWED_ON = new Set(['communication:webhook', 'communication:queueUpdate']);
+const ALLOWED_ON = new Set(['communication:webhook', 'communication:queueUpdate', 'backup:discoveryProgress']);
 
 function invoke(channel, ...args) {
   if (!ALLOWED_INVOKE.has(channel)) {
@@ -181,6 +181,7 @@ const cuppingApi = {
     disconnectCloud: (provider) => invoke('backup:disconnectCloud', provider),
     listCloudBackups: (provider, prefix) => invoke('backup:listCloudBackups', provider, prefix),
     discoverCloudRestorePoints: (options) => invoke('backup:discoverCloudRestorePoints', options),
+    onDiscoveryProgress: (cb) => on('backup:discoveryProgress', cb),
     downloadCloudBackup: (remotePath, provider) => invoke('backup:downloadCloudBackup', remotePath, provider),
     deleteCloudBackup: (remotePath, provider) => invoke('backup:deleteCloudBackup', remotePath, provider),
     verifyCloudBackup: (remotePath, expectedHash, provider) =>
